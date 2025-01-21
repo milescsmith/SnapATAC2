@@ -28,7 +28,7 @@ requires-python = ">=3.9, <3.14"
 dynamic = ["version"]
 
 dependencies = [
-    'anndata >= 0.8.0, < 0.11.0',
+    'anndata == 0.11.3',
     'kaleido',
     'multiprocess',
     #'MACS3 >= 3.0, < 3.1',
