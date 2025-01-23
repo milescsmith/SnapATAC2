@@ -6,22 +6,46 @@ from . import plotting as pl
 from . import export as ex
 
 from snapatac2._snapatac2 import (
-    AnnData, AnnDataSet, PyDNAMotif,
-    read, read_mtx, read_dataset, read_motifs,
+    AnnData,
+    AnnDataSet,
+    PyDNAMotif,
+    read,
+    read_mtx,
+    read_dataset,
+    read_motifs,
 )
 
 import importlib.metadata
+
 __version__ = importlib.metadata.version("snapatac2")
 
 import sys
-sys.modules.update({f'{__name__}.{m}': globals()[m] for m in ['pp', 'tl', 'pl', 'ex']})
+
+sys.modules.update({f"{__name__}.{m}": globals()[m] for m in ["pp", "tl", "pl", "ex"]})
 
 import logging
+
 logging.basicConfig(
     stream=sys.stderr,
     format="%(asctime)s - %(levelname)s - %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
-    level=logging.INFO, 
+    level=logging.INFO,
 )
 
 del sys
+
+__all__ = [
+    "read_10x_mtx",
+    "pp",
+    "tl",
+    "metrics",
+    "pl",
+    "ex",
+    "AnnData",
+    "AnnDataSet",
+    "PyDNAMotif",
+    "read",
+    "read_mtx",
+    "read_dataset",
+    "read_motifs",
+]

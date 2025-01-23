@@ -8,6 +8,7 @@ import snapatac2
 import snapatac2._snapatac2 as internal
 from snapatac2.genome import Genome
 
+
 def tsse(
     adata: internal.AnnData | list[internal.AnnData],
     gene_anno: Genome | Path,
@@ -16,7 +17,7 @@ def tsse(
     inplace: bool = True,
     n_jobs: int = 8,
 ) -> np.ndarray | list[np.ndarray] | None:
-    """ Compute the TSS enrichment score (TSSe) for each cell.
+    """Compute the TSS enrichment score (TSSe) for each cell.
 
     :func:`~snapatac2.pp.import_fragments` must be ran first in order to use this function.
 
@@ -59,26 +60,29 @@ def tsse(
     Name: tsse, dtype: float64
     """
     gene_anno = gene_anno.annotation if isinstance(gene_anno, Genome) else gene_anno
- 
+
     if isinstance(adata, list):
         result = snapatac2._utils.anndata_par(
             adata,
-            lambda x: tsse(x, gene_anno, exclude_chroms=exclude_chroms, inplace=inplace),
+            lambda x: tsse(
+                x, gene_anno, exclude_chroms=exclude_chroms, inplace=inplace
+            ),
             n_jobs=n_jobs,
         )
     else:
         result = internal.tss_enrichment(adata, gene_anno, exclude_chroms)
-        result['tsse'] = np.array(result['tsse'])
-        result['TSS_profile'] = np.array(result['TSS_profile'])
+        result["tsse"] = np.array(result["tsse"])
+        result["TSS_profile"] = np.array(result["TSS_profile"])
         if inplace:
-            adata.obs["tsse"] = result['tsse']
-            adata.uns['library_tsse'] = result['library_tsse']
-            adata.uns['frac_overlap_TSS'] = result['frac_overlap_TSS']
-            adata.uns['TSS_profile'] = result['TSS_profile']
+            adata.obs["tsse"] = result["tsse"]
+            adata.uns["library_tsse"] = result["library_tsse"]
+            adata.uns["frac_overlap_TSS"] = result["frac_overlap_TSS"]
+            adata.uns["TSS_profile"] = result["TSS_profile"]
     if inplace:
         return None
     else:
         return result
+
 
 def frip(
     adata: internal.AnnData | list[internal.AnnData],
@@ -89,7 +93,7 @@ def frip(
     inplace: bool = True,
     n_jobs: int = 8,
 ) -> dict[str, list[float]] | list[dict[str, list[float]]] | None:
-    """ Add fraction of reads in peaks (FRiP) to the AnnData object.
+    """Add fraction of reads in peaks (FRiP) to the AnnData object.
 
     :func:`~snapatac2.pp.import_fragments` must be ran first in order to use this function.
 
@@ -159,6 +163,7 @@ def frip(
     else:
         return result
 
+
 def frag_size_distr(
     adata: internal.AnnData | list[internal.AnnData],
     *,
@@ -167,7 +172,7 @@ def frag_size_distr(
     inplace: bool = True,
     n_jobs: int = 8,
 ) -> np.ndarray | list[np.ndarray] | None:
-    """ Compute the fragment size distribution of the dataset. 
+    """Compute the fragment size distribution of the dataset.
 
     This function computes the fragment size distribution of the dataset.
     Note that it does not operate at the single-cell level.
@@ -204,7 +209,9 @@ def frag_size_distr(
     if isinstance(adata, list):
         return snapatac2._utils.anndata_par(
             adata,
-            lambda x: frag_size_distr(x, add_key=add_key, max_recorded_size=max_recorded_size, inplace=inplace),
+            lambda x: frag_size_distr(
+                x, add_key=add_key, max_recorded_size=max_recorded_size, inplace=inplace
+            ),
             n_jobs=n_jobs,
         )
     else:
@@ -214,13 +221,14 @@ def frag_size_distr(
         else:
             return result
 
+
 def summary_by_chrom(
     adata: internal.AnnData | list[internal.AnnData],
     *,
-    mode: Literal['sum', 'mean', 'count'] = 'count',
+    mode: Literal["sum", "mean", "count"] = "count",
     n_jobs: int = 8,
 ) -> dict[str, np.ndarray]:
-    """ Compute the cell level summary statistics by chromosome.
+    """Compute the cell level summary statistics by chromosome.
 
     :func:`~snapatac2.pp.import_fragments` must be ran first in order to use this function.
 

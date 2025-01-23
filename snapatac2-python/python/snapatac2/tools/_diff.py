@@ -8,6 +8,7 @@ import logging
 from snapatac2._snapatac2 import AnnData, AnnDataSet
 from snapatac2.tools._misc import aggregate_X
 
+
 def marker_regions(
     data: AnnData | AnnDataSet,
     groupby: str | list[str],
@@ -26,7 +27,7 @@ def marker_regions(
         P-value threshold.
     """
     count = aggregate_X(data, groupby, normalize="RPKM")
-    z = zscore(np.log2(1 + count.X), axis = 0)
+    z = zscore(np.log2(1 + count.X), axis=0)
     peaks = {}
     for i in range(z.shape[0]):
         select = norm.sf(z[i, :]) < pvalue
@@ -34,12 +35,14 @@ def marker_regions(
             peaks[count.obs_names[i]] = count.var_names[select]
     return peaks
 
+
 def mad(data, axis=None):
-    """ Compute Median Absolute Deviation """
+    """Compute Median Absolute Deviation"""
     return np.median(np.absolute(data - np.median(data, axis)), axis)
 
+
 def modified_zscore(matrix, axis=0):
-    """ Compute Modified Z-score for a matrix along specified axis """
+    """Compute Modified Z-score for a matrix along specified axis"""
     median = np.median(matrix, axis=axis)
     median_absolute_deviation = mad(matrix, axis=axis)
     min_non_zero = np.min(median_absolute_deviation[median_absolute_deviation > 0])
@@ -54,16 +57,17 @@ def modified_zscore(matrix, axis=0):
 
     return modified_z_scores
 
+
 def diff_test(
     data: AnnData | AnnDataSet,
     cell_group1: list[int] | list[str],
     cell_group2: list[int] | list[str],
-    features : list[str] | list[int] | None = None,
+    features: list[str] | list[int] | None = None,
     covariates: list[str] | None = None,
     direction: Literal["positive", "negative", "both"] = "both",
     min_log_fc: float = 0.25,
     min_pct: float = 0.05,
-) -> 'polars.DataFrame':
+) -> "polars.DataFrame":
     """
     Identify differentially accessible regions.
 
@@ -72,10 +76,10 @@ def diff_test(
     data
         AnnData or AnnDataSet object.
     cell_group1
-        cells belonging to group 1. This can be a list of cell barcodes, indices or 
+        cells belonging to group 1. This can be a list of cell barcodes, indices or
         boolean mask vector.
     cell_group2
-        cells belonging to group 2. This can be a list of cell barcodes, indices or 
+        cells belonging to group 2. This can be a list of cell barcodes, indices or
         boolean mask vector.
     features
         Features/peaks to test. If None, all features are tested.
@@ -90,7 +94,7 @@ def diff_test(
         X-fold difference (log2-scale) between the two groups of cells.
     min_pct
         Only test features that are detected in a minimum fraction of min_pct
-        cells in either of the two populations. 
+        cells in either of the two populations.
 
     Returns
     -------
@@ -129,7 +133,11 @@ def diff_test(
         raise NameError("covariates is not implemented")
 
     features = range(data.n_vars) if features is None else to_indices(features, "var")
-    logging.info("Input contains {} features, now perform filtering with 'min_log_fc = {}' and 'min_pct = {}' ...".format(len(features), min_log_fc, min_pct))
+    logging.info(
+        "Input contains {} features, now perform filtering with 'min_log_fc = {}' and 'min_pct = {}' ...".format(
+            len(features), min_log_fc, min_pct
+        )
+    )
     filtered = _filter_features(
         cell_by_peak[:n_group1, :],
         cell_by_peak[n_group1:, :],
@@ -140,19 +148,24 @@ def diff_test(
     )
 
     if len(filtered) == 0:
-        logging.warning("Zero feature left after filtering, perhaps 'min_log_fc' or 'min_pct' is too large")
+        logging.warning(
+            "Zero feature left after filtering, perhaps 'min_log_fc' or 'min_pct' is too large"
+        )
         return pl.DataFrame()
     else:
         features, log_fc = zip(*filtered)
         logging.info("Testing {} features ...".format(len(features)))
         pvals = _diff_test_helper(cell_by_peak, test_var, features, covariates)
         var_names = data.var_names
-        return pl.DataFrame({
-            "feature name": [var_names[i] for i in features],
-            "log2(fold_change)": np.array(log_fc),
-            "p-value": np.array(pvals),
-            "adjusted p-value": _p_adjust_bh(pvals),
-        }).sort("adjusted p-value")
+        return pl.DataFrame(
+            {
+                "feature name": [var_names[i] for i in features],
+                "log2(fold_change)": np.array(log_fc),
+                "p-value": np.array(pvals),
+                "adjusted p-value": _p_adjust_bh(pvals),
+            }
+        ).sort("adjusted p-value")
+
 
 def _p_adjust_bh(p):
     """Benjamini-Hochberg p-value correction for multiple hypothesis testing."""
@@ -163,17 +176,24 @@ def _p_adjust_bh(p):
     q = np.minimum(1, np.minimum.accumulate(steps * p[by_descend]))
     return q[by_orig]
 
-def _filter_features(mat1, mat2, peak_indices, direction,
-    min_pct, min_log_fc, pseudo_count = 1,
+
+def _filter_features(
+    mat1,
+    mat2,
+    peak_indices,
+    direction,
+    min_pct,
+    min_log_fc,
+    pseudo_count=1,
 ):
     def rpm(m):
-        x = np.ravel(np.sum(m, axis = 0)) + pseudo_count
+        x = np.ravel(np.sum(m, axis=0)) + pseudo_count
         s = x.sum()
         return x / (s / 1000000)
 
     def pass_min_pct(i):
-        cond1 = mat1[:, i].count_nonzero() / mat1.shape[0] >= min_pct 
-        cond2 = mat2[:, i].count_nonzero() / mat2.shape[0] >= min_pct 
+        cond1 = mat1[:, i].count_nonzero() / mat1.shape[0] >= min_pct
+        cond2 = mat2[:, i].count_nonzero() / mat2.shape[0] >= min_pct
         return cond1 or cond2
 
     def adjust_sign(fc):
@@ -188,7 +208,10 @@ def _filter_features(mat1, mat2, peak_indices, direction,
 
     log_fc = np.log2(rpm(mat1) / rpm(mat2))
     peak_indices = [i for i in peak_indices if pass_min_pct(i)]
-    return [(i, log_fc[i])  for i in peak_indices if adjust_sign(log_fc[i]) >= min_log_fc]
+    return [
+        (i, log_fc[i]) for i in peak_indices if adjust_sign(log_fc[i]) >= min_log_fc
+    ]
+
 
 def _diff_test_helper(mat, z, peaks=None, covariate=None) -> list[float]:
     """
@@ -200,13 +223,13 @@ def _diff_test_helper(mat, z, peaks=None, covariate=None) -> list[float]:
         variables to test
     peaks
         peak indices
-    covariate 
+    covariate
         additional variables to regress out.
     """
 
     if len(z.shape) == 1:
         z = z.reshape((-1, 1))
-    
+
     if covariate is None:
         X = np.log1p(np.sum(mat, axis=1))
     else:
@@ -229,13 +252,13 @@ def _likelihood_ratio_test_many(X, z, Y) -> list[float]:
         (n_sample, 1), the additional variable.
     Y
         (n_sample, k), labels
-    
+
     Returns
     -------
     P-values of whether adding z to the models improves the prediction.
     """
     from tqdm import tqdm
- 
+
     X0 = X
     X1 = np.concatenate((X, z), axis=1)
 
@@ -248,6 +271,7 @@ def _likelihood_ratio_test_many(X, z, Y) -> list[float]:
             _likelihood_ratio_test(X0, X1, np.asarray(np.ravel(Y[:, i].todense())))
         )
     return result
+
 
 def _likelihood_ratio_test(
     X0: np.ndarray,
@@ -274,19 +298,28 @@ def _likelihood_ratio_test(
     from sklearn.linear_model import LogisticRegression
     from sklearn.metrics import log_loss
 
-    model = LogisticRegression(penalty=None, random_state=0, n_jobs=1,
-        solver="lbfgs", warm_start=False,
-        max_iter = 1000,
-        ).fit(X0, y)
+    model = LogisticRegression(
+        penalty=None,
+        random_state=0,
+        n_jobs=1,
+        solver="lbfgs",
+        warm_start=False,
+        max_iter=1000,
+    ).fit(X0, y)
     reduced = -log_loss(y, model.predict_proba(X0), normalize=False)
 
-    model = LogisticRegression(penalty=None, random_state=0, n_jobs=1,
-        solver="lbfgs", warm_start=False,
-        max_iter = 1000,
-        ).fit(X1, y)
+    model = LogisticRegression(
+        penalty=None,
+        random_state=0,
+        n_jobs=1,
+        solver="lbfgs",
+        warm_start=False,
+        max_iter=1000,
+    ).fit(X1, y)
     full = -log_loss(y, model.predict_proba(X1), normalize=False)
     chi = -2 * (reduced - full)
     return chi2.sf(chi, X1.shape[1] - X0.shape[1])
+
 
 def _convert_to_bool_if_np_bool(value):
     if isinstance(value, np.bool_):

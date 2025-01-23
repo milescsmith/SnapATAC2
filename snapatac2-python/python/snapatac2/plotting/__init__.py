@@ -11,9 +11,15 @@ from ._base import render_plot, heatmap, kde2d, scatter, scatter3d
 from ._network import network_scores, network_edge_stat
 
 __all__ = [
-    'tsse', 'frag_size_distr', 'umap', 'network_scores', 'spectral_eigenvalues',
-    'regions', 'motif_enrichment',
+    "tsse",
+    "frag_size_distr",
+    "umap",
+    "network_scores",
+    "spectral_eigenvalues",
+    "regions",
+    "motif_enrichment",
 ]
+
 
 def valid_cells(
     values,
@@ -47,13 +53,14 @@ def valid_cells(
 
     return render_plot(fig, width, height, **kwargs)
 
+
 def tsse(
     adata: AnnData,
     min_fragment: int = 500,
     width: int = 500,
     height: int = 400,
     **kwargs,
-) -> 'plotly.graph_objects.Figure' | None:
+) -> "plotly.graph_objects.Figure" | None:
     """Plot the TSS enrichment vs. number of fragments density figure.
 
     Parameters
@@ -66,7 +73,7 @@ def tsse(
         The width of the plot
     height
         The height of the plot
-    kwargs        
+    kwargs
         Additional arguments passed to :func:`~snapatac2.pl.render_plot` to
         control the final plot output. Please see :func:`~snapatac2.pl.render_plot`
         for details.
@@ -74,7 +81,7 @@ def tsse(
     Returns
     -------
     'plotly.graph_objects.Figure' | None
-        If `show=False` and `out_file=None`, an `plotly.graph_objects.Figure` will be 
+        If `show=False` and `out_file=None`, an `plotly.graph_objects.Figure` will be
         returned, which can then be further customized using the plotly API.
 
     See Also
@@ -91,7 +98,9 @@ def tsse(
         >>> fig.show()
     """
     if "tsse" not in adata.obs:
-        raise ValueError("TSS enrichment score is not computed, please run `metrics.tsse` first.")
+        raise ValueError(
+            "TSS enrichment score is not computed, please run `metrics.tsse` first."
+        )
 
     selected_cells = np.where(adata.obs["n_fragment"] >= min_fragment)[0]
     x = adata.obs["n_fragment"][selected_cells]
@@ -105,34 +114,37 @@ def tsse(
 
     return render_plot(fig, width, height, **kwargs)
 
+
 def frag_size_distr(
     adata: AnnData | np.ndarray,
     use_rep: str = "frag_size_distr",
     max_recorded_size: int = 1000,
     **kwargs,
-) -> 'plotly.graph_objects.Figure' | None:
-    """ Plot the fragment size distribution.
-    """
+) -> "plotly.graph_objects.Figure" | None:
+    """Plot the fragment size distribution."""
     import plotly.graph_objects as go
 
     if is_anndata(adata):
         if use_rep not in adata.uns or len(adata.uns[use_rep]) <= max_recorded_size:
             logging.info("Computing fragment size distribution...")
-            snapatac2.metrics.frag_size_distr(adata, add_key=use_rep, max_recorded_size=max_recorded_size)
+            snapatac2.metrics.frag_size_distr(
+                adata, add_key=use_rep, max_recorded_size=max_recorded_size
+            )
         data = adata.uns[use_rep]
     else:
         data = adata
-    data = data[:max_recorded_size+1]
+    data = data[: max_recorded_size + 1]
 
     x, y = zip(*enumerate(data))
     # Make a line plot
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=x[1:], y=y[1:], mode='lines'))
+    fig.add_trace(go.Scatter(x=x[1:], y=y[1:], mode="lines"))
     fig.update_layout(
         xaxis_title="Fragment size",
         yaxis_title="Count",
     )
     return render_plot(fig, **kwargs)
+
 
 def spectral_eigenvalues(
     adata: AnnData,
@@ -141,7 +153,7 @@ def spectral_eigenvalues(
     show: bool = True,
     interactive: bool = True,
     out_file: str | None = None,
-) -> 'plotly.graph_objects.Figure' | None:
+) -> "plotly.graph_objects.Figure" | None:
     """Plot the eigenvalues of spectral embedding.
 
     Parameters
@@ -163,22 +175,25 @@ def spectral_eigenvalues(
     Returns
     -------
     'plotly.graph_objects.Figure' | None
-        If `show=False` and `out_file=None`, an `plotly.graph_objects.Figure` will be 
+        If `show=False` and `out_file=None`, an `plotly.graph_objects.Figure` will be
         returned, which can then be further customized using the plotly API.
     """
- 
+
     import plotly.express as px
     import pandas as pd
 
     data = adata.uns["spectral_eigenvalue"]
 
-    df = pd.DataFrame({"Component": map(str, range(1, data.shape[0] + 1)), "Eigenvalue": data})
+    df = pd.DataFrame(
+        {"Component": map(str, range(1, data.shape[0] + 1)), "Eigenvalue": data}
+    )
     fig = px.scatter(df, x="Component", y="Eigenvalue", template="plotly_white")
     n = find_elbow(data)
     adata.uns["num_eigen"] = n
     fig.add_vline(x=n)
 
     return render_plot(fig, width, height, interactive, show, out_file)
+
 
 def regions(
     adata: AnnData | AnnDataSet,
@@ -189,7 +204,7 @@ def regions(
     show: bool = True,
     interactive: bool = True,
     out_file: str | None = None,
-) -> 'plotly.graph_objects.Figure' | None:
+) -> "plotly.graph_objects.Figure" | None:
     """
     Parameters
     ----------
@@ -215,7 +230,7 @@ def regions(
     Returns
     -------
     'plotly.graph_objects.Figure' | None
-        If `show=False` and `out_file=None`, an `plotly.graph_objects.Figure` will be 
+        If `show=False` and `out_file=None`, an `plotly.graph_objects.Figure` will be
         returned, which can then be further customized using the plotly API.
     """
     import polars as pl
@@ -241,17 +256,18 @@ def regions(
         x=count.columns,
         y=peaks[::-1],
         z=mat,
-        type='heatmap',
-        colorscale='Viridis',
-        colorbar={ "title": "log2(1 + RPKM)" },
+        type="heatmap",
+        colorscale="Viridis",
+        colorbar={"title": "log2(1 + RPKM)"},
     )
     data = [trace]
     layout = {
-        "yaxis": { "visible": False, "autorange": "reversed" },
-        "xaxis": { "title": groupby },
+        "yaxis": {"visible": False, "autorange": "reversed"},
+        "xaxis": {"title": groupby},
     }
     fig = go.Figure(data=data, layout=layout)
     return render_plot(fig, width, height, interactive, show, out_file)
+
 
 def umap(
     adata: AnnData | np.ndarray,
@@ -261,7 +277,7 @@ def umap(
     marker_opacity: float = 1,
     sample_size: int | None = None,
     **kwargs,
-) -> 'plotly.graph_objects.Figure' | None:
+) -> "plotly.graph_objects.Figure" | None:
     """Plot the UMAP embedding.
 
     Parameters
@@ -280,7 +296,7 @@ def umap(
     sample_size
         If the number of cells is larger than `sample_size`, a random sample of
         `sample_size` cells will be used for plotting.
-    kwargs        
+    kwargs
         Additional arguments passed to :func:`~snapatac2.pl.render_plot` to
         control the final plot output. Please see :func:`~snapatac2.pl.render_plot`
         for details.
@@ -288,7 +304,7 @@ def umap(
     Returns
     -------
     'plotly.graph_objects.Figure' | None
-        If `show=False` and `out_file=None`, an `plotly.graph_objects.Figure` will be 
+        If `show=False` and `out_file=None`, an `plotly.graph_objects.Figure` will be
         returned, which can then be further customized using the plotly API.
     """
     from natsort import index_natsorted
@@ -299,11 +315,12 @@ def umap(
     else:
         groups = color
         color = "color"
-    
+
     if sample_size is not None and embedding.shape[0] > sample_size:
         idx = np.random.choice(embedding.shape[0], sample_size, replace=False)
         embedding = embedding[idx, :]
-        if groups is not None: groups = groups[idx]
+        if groups is not None:
+            groups = groups[idx]
 
     if groups is not None:
         idx = index_natsorted(groups)
@@ -312,23 +329,42 @@ def umap(
 
     if marker_size is None:
         num_points = embedding.shape[0]
-        marker_size = (1000 / num_points)**(1/3) * 3
+        marker_size = (1000 / num_points) ** (1 / 3) * 3
 
     if embedding.shape[1] >= 3:
-        return scatter3d(embedding[:, 0], embedding[:, 1], embedding[:, 2], color=groups,
-            x_label="UMAP-1", y_label="UMAP-2", z_label="UMAP-3", color_label=color,
-            marker_size=marker_size, marker_opacity=marker_opacity, **kwargs)
+        return scatter3d(
+            embedding[:, 0],
+            embedding[:, 1],
+            embedding[:, 2],
+            color=groups,
+            x_label="UMAP-1",
+            y_label="UMAP-2",
+            z_label="UMAP-3",
+            color_label=color,
+            marker_size=marker_size,
+            marker_opacity=marker_opacity,
+            **kwargs,
+        )
     else:
-        return scatter(embedding[:, 0], embedding[:, 1], color=groups,
-            x_label="UMAP-1", y_label="UMAP-2", color_label=color,
-            marker_size=marker_size, marker_opacity=marker_opacity, **kwargs)
+        return scatter(
+            embedding[:, 0],
+            embedding[:, 1],
+            color=groups,
+            x_label="UMAP-1",
+            y_label="UMAP-2",
+            color_label=color,
+            marker_size=marker_size,
+            marker_opacity=marker_opacity,
+            **kwargs,
+        )
+
 
 def motif_enrichment(
-    enrichment: list(str, 'pl.DataFrame'),
+    enrichment: list(str, "pl.DataFrame"),
     min_log_fc: float = 1,
     max_fdr: float = 0.01,
     **kwargs,
-) -> 'plotly.graph_objects.Figure' | None:
+) -> "plotly.graph_objects.Figure" | None:
     """Plot the motif enrichment result.
 
     Parameters
@@ -339,7 +375,7 @@ def motif_enrichment(
         Retain motifs that satisfy: log2-fold-change >= `min_log_fc`.
     max_fdr
         Retain motifs that satisfy: FDR <= `max_fdr`.
-    kwargs        
+    kwargs
         Additional arguments passed to :func:`~snapatac2.pl.render_plot` to
         control the final plot output. Please see :func:`~snapatac2.pl.render_plot`
         for details.
@@ -347,22 +383,22 @@ def motif_enrichment(
     Returns
     -------
     'plotly.graph_objects.Figure' | None
-        If `show=False` and `out_file=None`, an `plotly.graph_objects.Figure` will be 
+        If `show=False` and `out_file=None`, an `plotly.graph_objects.Figure` will be
         returned, which can then be further customized using the plotly API.
     """
- 
+
     import pandas as pd
-    
-    fc = np.vstack([df['log2(fold change)'] for df in enrichment.values()])
+
+    fc = np.vstack([df["log2(fold change)"] for df in enrichment.values()])
     filter1 = np.apply_along_axis(lambda x: np.any(np.abs(x) >= min_log_fc), 0, fc)
-    
-    fdr = np.vstack([df['adjusted p-value'] for df in enrichment.values()])
+
+    fdr = np.vstack([df["adjusted p-value"] for df in enrichment.values()])
     filter2 = np.apply_along_axis(lambda x: np.any(x <= max_fdr), 0, fdr)
 
     passed = np.logical_and(filter1, filter2)
-    
+
     sign = np.sign(fc[:, passed])
-    pvals = np.vstack([df['p-value'].to_numpy()[passed] for df in enrichment.values()])
+    pvals = np.vstack([df["p-value"].to_numpy()[passed] for df in enrichment.values()])
     minval = np.min(pvals[np.nonzero(pvals)])
     pvals = np.clip(pvals, minval, None)
     pvals = sign * np.log(-np.log10(pvals))
@@ -370,13 +406,13 @@ def motif_enrichment(
     df = pd.DataFrame(
         pvals.T,
         columns=list(enrichment.keys()),
-        index=next(iter(enrichment.values()))['id'].to_numpy()[passed],
+        index=next(iter(enrichment.values()))["id"].to_numpy()[passed],
     )
-      
+
     return heatmap(
         df.to_numpy(),
         row_names=df.index,
         column_names=df.columns,
-        colorscale='RdBu_r',
+        colorscale="RdBu_r",
         **kwargs,
     )

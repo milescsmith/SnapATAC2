@@ -10,12 +10,25 @@ import scipy.sparse as sp
 from snapatac2.genome import Genome
 from snapatac2._utils import fetch_seq
 from snapatac2._snapatac2 import (
-    AnnData, AnnDataSet, link_region_to_gene, PyDNAMotif, spearman
+    AnnData,
+    AnnDataSet,
+    link_region_to_gene,
+    PyDNAMotif,
+    spearman,
 )
 
-__all__ = ['NodeData', 'LinkData',
-           'init_network_from_annotation', 'add_cor_scores', 'add_regr_scores',
-           'add_tf_binding', 'link_tf_to_gene', 'prune_network', 'pagerank']
+__all__ = [
+    "NodeData",
+    "LinkData",
+    "init_network_from_annotation",
+    "add_cor_scores",
+    "add_regr_scores",
+    "add_tf_binding",
+    "link_tf_to_gene",
+    "prune_network",
+    "pagerank",
+]
+
 
 class NodeData:
     def __init__(self, id: str = "", type: str = "") -> None:
@@ -26,20 +39,22 @@ class NodeData:
     def __repr__(self):
         return str(self.__dict__)
 
+
 class LinkData:
     def __init__(
         self,
-        distance: int =0,
+        distance: int = 0,
         label: str | None = None,
     ) -> None:
         self.distance = distance
         self.label = label
         self.regr_score = None
         self.cor_score = None
-    
+
     def __repr__(self):
         return str(self.__dict__)
-   
+
+
 def init_network_from_annotation(
     regions: list[str],
     anno_file: Path | Genome,
@@ -76,7 +91,7 @@ def init_network_from_annotation(
     """
     if isinstance(anno_file, Genome):
         anno_file = anno_file.annotation
-        
+
     region_added = {}
     graph = rx.PyDiGraph()
     links = link_region_to_gene(
@@ -94,8 +109,11 @@ def init_network_from_annotation(
             if key in region_added:
                 graph.add_edge(region_added[key], to, LinkData(distance))
             else:
-                region_added[key] = graph.add_parent(to, NodeData(i, t), LinkData(distance))
+                region_added[key] = graph.add_parent(
+                    to, NodeData(i, t), LinkData(distance)
+                )
     return graph
+
 
 def add_cor_scores(
     network: rx.PyDiGraph,
@@ -137,7 +155,7 @@ def add_cor_scores(
         raise NameError("gene matrix and peak matrix should have the same obs_names")
     if select is not None:
         select = set(select)
-    without_overwrite = None if overwrite else key 
+    without_overwrite = None if overwrite else key
 
     if network.num_edges() > 0:
         data = _get_data_iter(network, peak_mat, gene_mat, select, without_overwrite)
@@ -149,6 +167,7 @@ def add_cor_scores(
             scores = np.ravel(spearman(X.T, y.reshape((1, -1))))
             for nd, sc in zip(nd_X, scores):
                 setattr(network.get_edge_data(nd, nd_y), key, sc)
+
 
 def add_regr_scores(
     network: rx.PyDiGraph,
@@ -202,16 +221,22 @@ def add_regr_scores(
     key = "regr_score"
     if peak_mat is not None and gene_mat is not None:
         if list(peak_mat.obs_names) != list(gene_mat.obs_names):
-            raise NameError("gene matrix and peak matrix should have the same obs_names")
+            raise NameError(
+                "gene matrix and peak matrix should have the same obs_names"
+            )
     if select is not None:
         select = set(select)
-    without_overwrite = None if overwrite else key 
+    without_overwrite = None if overwrite else key
     tree_method = "gpu_hist" if use_gpu else "hist"
-    
+
     if network.num_edges() == 0:
         return network
 
-    for (nd_X, X), (nd_y, y) in tqdm(_get_data_iter(network, peak_mat, gene_mat, select, without_overwrite, scale_X, scale_Y)):
+    for (nd_X, X), (nd_y, y) in tqdm(
+        _get_data_iter(
+            network, peak_mat, gene_mat, select, without_overwrite, scale_X, scale_Y
+        )
+    ):
         y = np.ravel(y.todense()) if sp.issparse(y) else y
         if method == "gb_tree":
             scores, fitness = _gbTree(X, y, tree_method=tree_method)
@@ -224,6 +249,7 @@ def add_regr_scores(
         network[nd_y].regr_fitness = fitness
         for nd, sc in zip(nd_X, scores):
             setattr(network.get_edge_data(nd, nd_y), key, sc)
+
 
 def add_tf_binding(
     network: rx.PyDiGraph,
@@ -249,9 +275,15 @@ def add_tf_binding(
     from tqdm import tqdm
     import itertools
 
-    regions = [(i, network[i].id) for i in network.node_indices() if network[i].type == "region"]
+    regions = [
+        (i, network[i].id)
+        for i in network.node_indices()
+        if network[i].type == "region"
+    ]
     logging.info("Fetching {} sequences ...".format(len(regions)))
-    genome = genome_fasta.fasta if isinstance(genome_fasta, Genome) else str(genome_fasta)
+    genome = (
+        genome_fasta.fasta if isinstance(genome_fasta, Genome) else str(genome_fasta)
+    )
     genome = Fasta(genome, one_based_attributes=False)
     sequences = [fetch_seq(genome, region) for _, region in regions]
 
@@ -265,19 +297,21 @@ def add_tf_binding(
                 [(nid, i, LinkData()) for i, _ in itertools.compress(regions, bound)]
             )
 
+
 def link_tf_to_gene(network: rx.PyDiGraph) -> rx.PyDiGraph:
     """Contruct a genetic network by linking TFs to target genes.
-    
+
     Convert the network to a genetic network.
     :func:`~snapatac2.tl.add_tf_binding` must be ran first in order to use this function.
 
     Parameters
     ----------
 
-    Returns 
+    Returns
     -------
     rx.PyDiGraph
     """
+
     def aggregate(edge_data):
         best = 0
         for a, b in edge_data:
@@ -307,16 +341,16 @@ def link_tf_to_gene(network: rx.PyDiGraph) -> rx.PyDiGraph:
                     for gene_id in network.successor_indices(succ_id):
                         region_gene = network.get_edge_data(succ_id, gene_id)
                         to = genes[network[gene_id].id]
-                        if to in targets :
+                        if to in targets:
                             targets[to].append((edge_data, region_gene))
                         else:
                             targets[to] = [(edge_data, region_gene)]
 
             for k, v in targets.items():
-                    #e1, e2 = aggregate(v)
-                    #label = ''.join(['+' if x.cor_score > 0 else '-' for x in [e1, e2]])
-                    #edges.append((fr, k, LinkData(label=label)))
-                    edges.append((fr, k, LinkData()))
+                # e1, e2 = aggregate(v)
+                # label = ''.join(['+' if x.cor_score > 0 else '-' for x in [e1, e2]])
+                # edges.append((fr, k, LinkData(label=label)))
+                edges.append((fr, k, LinkData()))
 
     graph.add_edges_from(edges)
 
@@ -326,8 +360,9 @@ def link_tf_to_gene(network: rx.PyDiGraph) -> rx.PyDiGraph:
             remove.append(nid)
     if len(remove) > 0:
         graph.remove_nodes_from(remove)
-    
+
     return graph
+
 
 def prune_network(
     network: rx.PyDiGraph,
@@ -354,16 +389,22 @@ def prune_network(
     rx.PyDiGraph
     """
     graph = rx.PyDiGraph()
-    
-    node_retained = [nid for nid in network.node_indices()
-                     if node_filter is None or node_filter(network[nid])]              
+
+    node_retained = [
+        nid
+        for nid in network.node_indices()
+        if node_filter is None or node_filter(network[nid])
+    ]
     node_indices = graph.add_nodes_from([network[nid] for nid in node_retained])
     node_index_map = dict(zip(node_retained, node_indices))
-   
-    edge_retained = [(node_index_map[fr], node_index_map[to], data)
-                     for fr, to, data in network.edge_index_map().values()
-                     if fr in node_index_map and to in node_index_map and
-                        (edge_filter is None or edge_filter(fr, to, data))]
+
+    edge_retained = [
+        (node_index_map[fr], node_index_map[to], data)
+        for fr, to, data in network.edge_index_map().values()
+        if fr in node_index_map
+        and to in node_index_map
+        and (edge_filter is None or edge_filter(fr, to, data))
+    ]
 
     graph.add_edges_from(edge_retained)
 
@@ -378,18 +419,22 @@ def prune_network(
 
     return graph
 
+
 def pagerank(
     network,
     node_weights: str | list[float] | None = None,
     edge_weights: str | list[float] | None = None,
 ) -> list[tuple[str, float]]:
-    tfs = {network[nid].id for nid in network.node_indices() if network.out_degree(nid) > 0}
+    tfs = {
+        network[nid].id for nid in network.node_indices() if network.out_degree(nid) > 0
+    }
     g = _to_igraph(network, node_weights, edge_weights, True)
     pagerank_scores = g.personalized_pagerank(
-        reset=None if node_weights is None else 'weight',
-        weights=None if edge_weights is None else 'weight',
+        reset=None if node_weights is None else "weight",
+        weights=None if edge_weights is None else "weight",
     )
-    return [(i['name'], s) for i, s in zip(g.vs, pagerank_scores) if i['name'] in tfs]
+    return [(i["name"], s) for i, s in zip(g.vs, pagerank_scores) if i["name"] in tfs]
+
 
 def _to_igraph(
     graph,
@@ -398,17 +443,20 @@ def _to_igraph(
     reverse_edge: bool = False,
 ):
     import igraph as ig
+
     g = ig.Graph()
 
     nodes = [x.id for x in graph.nodes()]
     node_attributes = None
     if node_weights is not None:
         if isinstance(node_weights, str):
-            node_attributes = {"weight": [getattr(x, node_weights) for x in graph.nodes()]}
+            node_attributes = {
+                "weight": [getattr(x, node_weights) for x in graph.nodes()]
+            }
         else:
             node_attributes = {"weight": node_weights}
     g.add_vertices(nodes, attributes=node_attributes)
-    
+
     edges = []
     if edge_weights is not None and isinstance(edge_weights, list):
         weights = edge_weights
@@ -429,19 +477,35 @@ def _to_igraph(
 
     return g
 
+
 def _network_stats(network: rx.PyDiGraph):
     from collections import defaultdict
 
     nNodes = network.num_nodes()
     nEdges = network.num_edges()
-    region_stat = defaultdict(lambda: {'nParents': defaultdict(lambda: 0), 'nChildren': defaultdict(lambda: 0)})
-    motif_stat = defaultdict(lambda: {'nParents': defaultdict(lambda: 0), 'nChildren': defaultdict(lambda: 0)})
-    gene_stat = defaultdict(lambda: {'nParents': defaultdict(lambda: 0), 'nChildren': defaultdict(lambda: 0)})
+    region_stat = defaultdict(
+        lambda: {
+            "nParents": defaultdict(lambda: 0),
+            "nChildren": defaultdict(lambda: 0),
+        }
+    )
+    motif_stat = defaultdict(
+        lambda: {
+            "nParents": defaultdict(lambda: 0),
+            "nChildren": defaultdict(lambda: 0),
+        }
+    )
+    gene_stat = defaultdict(
+        lambda: {
+            "nParents": defaultdict(lambda: 0),
+            "nChildren": defaultdict(lambda: 0),
+        }
+    )
 
     for fr, to, data in network.edge_index_map().values():
         fr_type = network[fr].type
         to_type = network[to].type
- 
+
 
 class _DataPairIter:
     """
@@ -462,6 +526,7 @@ class _DataPairIter:
     regulatee_ids
         Node ids of regulatees.
     """
+
     def __init__(
         self,
         mat_X,
@@ -493,6 +558,7 @@ class _DataPairIter:
         self.index += 1
         return (nd_X, X), (nd_y, y)
 
+
 def _get_data_iter(
     network: rx.PyDiGraph,
     peak_mat: AnnData | AnnDataSet | None,
@@ -502,8 +568,7 @@ def _get_data_iter(
     scale_X: bool = False,
     scale_Y: bool = False,
 ) -> _DataPairIter:
-    """
-    """
+    """ """
     from scipy.stats import zscore
 
     def get_mat(nids, node_getter, gene_mat, peak_mat):
@@ -512,7 +577,7 @@ def _get_data_iter(
         mats = []
 
         for x in nids:
-            nd = node_getter(x) 
+            nd = node_getter(x)
             if nd.type == "gene" or nd.type == "motif":
                 genes.append(x)
             elif nd.type == "region":
@@ -537,7 +602,7 @@ def _get_data_iter(
                 else:
                     ix = [peak_mat.var_names.get_loc(node_getter(x).id) for x in peaks]
                 mats.append(peak_mat.X[:, ix])
-        
+
         if all([sp.issparse(x) for x in mats]):
             mat = sp.hstack(mats, format="csc")
         else:
@@ -550,11 +615,15 @@ def _get_data_iter(
 
     for nid in network.node_indices():
         if network[nid].type == "region" or network[nid].id in select:
-            parents = [pid for pid, _, edge_data in network.in_edges(nid)
-                       if (without_overwrite is None or
-                           getattr(edge_data, without_overwrite) is None) and
-                          (network[pid].type == "region" or
-                           network[pid].id in all_genes)]
+            parents = [
+                pid
+                for pid, _, edge_data in network.in_edges(nid)
+                if (
+                    without_overwrite is None
+                    or getattr(edge_data, without_overwrite) is None
+                )
+                and (network[pid].type == "region" or network[pid].id in all_genes)
+            ]
             if len(parents) > 0:
                 id_XY.append((parents, nid))
     unique_X = list({y for x, _ in id_XY for y in x})
@@ -571,7 +640,7 @@ def _get_data_iter(
         if sp.issparse(mat_Y):
             logging.warning("Try to scale a sparse matrix")
         mat_Y = zscore(mat_Y, axis=0)
-        
+
     return _DataPairIter(
         mat_X,
         mat_Y,
@@ -579,12 +648,14 @@ def _get_data_iter(
         id_XY,
     )
 
+
 def _logistic_regression(X, y):
-    from sklearn.linear_model import LogisticRegression 
+    from sklearn.linear_model import LogisticRegression
 
     y = y != 0
     regr = LogisticRegression(max_iter=1000, random_state=0).fit(X, y)
     return np.ravel(regr.coef_), regr.score(X, y)
+
 
 def _elastic_net(X, y, alpha=1, l1_ratio=0.5, positive=False):
     from sklearn.linear_model import ElasticNet
@@ -593,12 +664,18 @@ def _elastic_net(X, y, alpha=1, l1_ratio=0.5, positive=False):
     y = np.asarray(y)
 
     regr = ElasticNet(
-        alpha=alpha, l1_ratio=l1_ratio, positive=positive,
-        random_state=0, copy_X=False, max_iter=10000,
+        alpha=alpha,
+        l1_ratio=l1_ratio,
+        positive=positive,
+        random_state=0,
+        copy_X=False,
+        max_iter=10000,
     ).fit(X, y)
     return regr.coef_, regr.score(X, y)
 
-def _gbTree(X, y, tree_method = "hist"):
+
+def _gbTree(X, y, tree_method="hist"):
     import xgboost as xgb
-    regr = xgb.XGBRegressor(tree_method = tree_method).fit(X, y)
+
+    regr = xgb.XGBRegressor(tree_method=tree_method).fit(X, y)
     return regr.feature_importances_, regr.score(X, y)

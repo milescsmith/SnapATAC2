@@ -3,6 +3,7 @@ from __future__ import annotations
 import numpy as np
 from scipy.stats import gaussian_kde
 
+
 def scatter(
     X: list[float],
     Y: list[float],
@@ -13,7 +14,7 @@ def scatter(
     marker_size: float = 2,
     marker_opacity: float = 0.5,
     **kwargs,
-) -> 'plotly.graph_objects.Figure' | None:
+) -> "plotly.graph_objects.Figure" | None:
     """Plot a scatter plot.
 
     Parameters
@@ -34,7 +35,7 @@ def scatter(
         Size of the dots.
     marker_opacity
         Opacity of the dots.
-    kwargs        
+    kwargs
         Additional arguments passed to :func:`~snapatac2.pl.render_plot` to
         control the final plot output. Please see :func:`~snapatac2.pl.render_plot`
         for details.
@@ -42,23 +43,28 @@ def scatter(
     Returns
     -------
     'plotly.graph_objects.Figure' | None
-        If `show=False` and `out_file=None`, an `plotly.graph_objects.Figure` will be 
+        If `show=False` and `out_file=None`, an `plotly.graph_objects.Figure` will be
         returned, which can then be further customized using the plotly API.
     """
     import plotly.express as px
     import pandas as pd
 
-    df = pd.DataFrame({
-        x_label: X,
-        y_label: Y,
-    })
+    df = pd.DataFrame(
+        {
+            x_label: X,
+            y_label: Y,
+        }
+    )
     if color is None:
         color_label = None
     else:
         df[color_label] = color
 
     fig = px.scatter(
-        df, x=x_label, y=y_label, color=color_label,
+        df,
+        x=x_label,
+        y=y_label,
+        color=color_label,
         color_discrete_sequence=px.colors.qualitative.Dark24,
     )
     fig.update_traces(
@@ -67,9 +73,10 @@ def scatter(
     )
     fig.update_layout(
         template="simple_white",
-        legend={'itemsizing': 'constant'},
+        legend={"itemsizing": "constant"},
     )
     return render_plot(fig, **kwargs)
+
 
 def scatter3d(
     X: list[float],
@@ -83,7 +90,7 @@ def scatter3d(
     marker_size: float = 2,
     marker_opacity: float = 0.5,
     **kwargs,
-) -> 'plotly.graph_objects.Figure' | None:
+) -> "plotly.graph_objects.Figure" | None:
     """Plot a scatter plot.
 
     Parameters
@@ -108,7 +115,7 @@ def scatter3d(
         Size of the dots.
     marker_opacity
         Opacity of the dots.
-    kwargs        
+    kwargs
         Additional arguments passed to :func:`~snapatac2.pl.render_plot` to
         control the final plot output. Please see :func:`~snapatac2.pl.render_plot`
         for details.
@@ -116,21 +123,28 @@ def scatter3d(
     Returns
     -------
     'plotly.graph_objects.Figure' | None
-        If `show=False` and `out_file=None`, an `plotly.graph_objects.Figure` will be 
+        If `show=False` and `out_file=None`, an `plotly.graph_objects.Figure` will be
         returned, which can then be further customized using the plotly API.
     """
     import plotly.express as px
     import pandas as pd
 
-    df = pd.DataFrame({
-        x_label: X,
-        y_label: Y,
-        z_label: Z,
-    })
-    if color is not None: df[color_label] = color
+    df = pd.DataFrame(
+        {
+            x_label: X,
+            y_label: Y,
+            z_label: Z,
+        }
+    )
+    if color is not None:
+        df[color_label] = color
 
     fig = px.scatter_3d(
-        df, x=x_label, y=y_label, z=z_label, color=color_label,
+        df,
+        x=x_label,
+        y=y_label,
+        z=z_label,
+        color=color_label,
         color_discrete_sequence=px.colors.qualitative.Dark24,
     )
     fig.update_traces(
@@ -139,7 +153,7 @@ def scatter3d(
     )
     fig.update_layout(
         template="simple_white",
-        legend={'itemsizing': 'constant'},
+        legend={"itemsizing": "constant"},
     )
     return render_plot(fig, **kwargs)
 
@@ -150,91 +164,119 @@ def heatmap(
     column_names: list[str] | None = None,
     cluster_columns: bool = True,
     cluster_rows: bool = True,
-    colorscale = "Blues",
+    colorscale="Blues",
     linkage: str = "ward",
     **kwargs,
 ):
     import plotly.graph_objects as go
     import plotly.figure_factory as ff
     import scipy.cluster.hierarchy as sch
-    
+
     link_func = lambda x: sch.linkage(x, linkage)
     fig = go.Figure()
-    
+
     if cluster_columns:
-        dendro_upper = ff.create_dendrogram(data_array.T, linkagefun=link_func, orientation='bottom')
-        upper_leaves = list(map(int, dendro_upper['layout']['xaxis']['ticktext']))
+        dendro_upper = ff.create_dendrogram(
+            data_array.T, linkagefun=link_func, orientation="bottom"
+        )
+        upper_leaves = list(map(int, dendro_upper["layout"]["xaxis"]["ticktext"]))
         data_array = data_array[:, upper_leaves]
         if column_names is not None:
-            dendro_upper['layout']['xaxis']['ticktext'] = np.array(column_names)[upper_leaves]
-        for i in range(len(dendro_upper['data'])):
-            dendro_upper['data'][i]['yaxis'] = 'y2'
-            fig.add_trace(dendro_upper['data'][i])
-        fig['layout'] = dendro_upper['layout']
+            dendro_upper["layout"]["xaxis"]["ticktext"] = np.array(column_names)[
+                upper_leaves
+            ]
+        for i in range(len(dendro_upper["data"])):
+            dendro_upper["data"][i]["yaxis"] = "y2"
+            fig.add_trace(dendro_upper["data"][i])
+        fig["layout"] = dendro_upper["layout"]
 
     if cluster_rows:
-        dendro_side = ff.create_dendrogram(data_array, linkagefun=link_func, orientation='right')
-        side_leaves = list(map(int, dendro_side['layout']['yaxis']['ticktext']))
+        dendro_side = ff.create_dendrogram(
+            data_array, linkagefun=link_func, orientation="right"
+        )
+        side_leaves = list(map(int, dendro_side["layout"]["yaxis"]["ticktext"]))
         data_array = data_array[side_leaves, :]
         if row_names is not None:
-            dendro_side['layout']['yaxis']['ticktext'] = np.array(row_names)[side_leaves]
-        for i in range(len(dendro_side['data'])):
-            dendro_side['data'][i]['xaxis'] = 'x2'
-            fig.add_trace(dendro_side['data'][i])
-        fig['layout']['yaxis'] = dendro_side['layout']['yaxis']
+            dendro_side["layout"]["yaxis"]["ticktext"] = np.array(row_names)[
+                side_leaves
+            ]
+        for i in range(len(dendro_side["data"])):
+            dendro_side["data"][i]["xaxis"] = "x2"
+            fig.add_trace(dendro_side["data"][i])
+        fig["layout"]["yaxis"] = dendro_side["layout"]["yaxis"]
 
     # Create Heatmap
-    heatmap = [go.Heatmap(
-        z=data_array,
-        colorscale=colorscale,
-        colorbar={'orientation': 'h', 'title': 'log(-log(P))'}
-    )]
+    heatmap = [
+        go.Heatmap(
+            z=data_array,
+            colorscale=colorscale,
+            colorbar={"orientation": "h", "title": "log(-log(P))"},
+        )
+    ]
     if cluster_columns:
-        heatmap[0]['x'] = dendro_upper['layout']['xaxis']['tickvals']
+        heatmap[0]["x"] = dendro_upper["layout"]["xaxis"]["tickvals"]
     if cluster_rows:
-        heatmap[0]['y'] = dendro_side['layout']['yaxis']['tickvals']
+        heatmap[0]["y"] = dendro_side["layout"]["yaxis"]["tickvals"]
     for data in heatmap:
         fig.add_trace(data)
-        
-    fig.update_layout({'showlegend':False, 'hovermode': 'closest'})
-    
+
+    fig.update_layout({"showlegend": False, "hovermode": "closest"})
+
     if cluster_rows:
         fig.update_layout(
             xaxis={
-                'domain': [.15, 1], 'mirror': False, 'showgrid': False,
-                'showline': False, 'zeroline': False, 'ticks':"",
+                "domain": [0.15, 1],
+                "mirror": False,
+                "showgrid": False,
+                "showline": False,
+                "zeroline": False,
+                "ticks": "",
             },
             xaxis2={
-                'domain': [0, .15], 'mirror': False, 'showgrid': False,
-                'showline': False, 'zeroline': False, 'showticklabels': False,
-                'ticks':"",
+                "domain": [0, 0.15],
+                "mirror": False,
+                "showgrid": False,
+                "showline": False,
+                "zeroline": False,
+                "showticklabels": False,
+                "ticks": "",
             },
         )
     if cluster_columns:
         fig.update_layout(
             yaxis={
-                'domain': [0, .85], 'mirror': False, 'showgrid': False,
-                'showline': False, 'zeroline': False, 'showticklabels': True,
-                'side': 'right', 'ticks': ""
+                "domain": [0, 0.85],
+                "mirror": False,
+                "showgrid": False,
+                "showline": False,
+                "zeroline": False,
+                "showticklabels": True,
+                "side": "right",
+                "ticks": "",
             },
             yaxis2={
-                'domain':[.825, .975], 'mirror': False, 'showgrid': False,
-                'showline': False, 'zeroline': False, 'showticklabels': False,
-                'ticks':""
+                "domain": [0.825, 0.975],
+                "mirror": False,
+                "showgrid": False,
+                "showline": False,
+                "zeroline": False,
+                "showticklabels": False,
+                "ticks": "",
             },
         )
     return render_plot(fig, **kwargs)
 
+
 def render_plot(
-    fig: 'plotly.graph_objects.Figure',
+    fig: "plotly.graph_objects.Figure",
     width: int = 600,
     height: int = 400,
     interactive: bool = True,
     show: bool = True,
     out_file: str | None = None,
     scale: float | None = None,
-) -> 'plotly.graph_objects.Figure' | None:
-    """ Render a plotly figure.
+) -> "plotly.graph_objects.Figure" | None:
+    """Render a plotly figure.
 
     Note that this function is not intended to be called directly. Instead, it is
     called by other plotting functions in this package.
@@ -265,10 +307,12 @@ def render_plot(
         returned, which can then be further customized using the plotly API.
     """
 
-    fig.update_layout({
-        "width": width,
-        "height": height,
-    })
+    fig.update_layout(
+        {
+            "width": width,
+            "height": height,
+        }
+    )
 
     # save figure to file
     if out_file is not None:
@@ -283,17 +327,20 @@ def render_plot(
             fig.show()
         else:
             from IPython.display import Image
+
             return Image(fig.to_image(format="png"))
 
     # return plot object
-    if not show and not out_file: return fig
+    if not show and not out_file:
+        return fig
+
 
 def kde2d(
     x: np.ndarray,
     y: np.ndarray,
     log_x: bool = False,
     log_y: bool = False,
-) -> 'plotly.graph_objects.Figure' | None:
+) -> "plotly.graph_objects.Figure" | None:
     """
     Parameters
     ----------
@@ -307,28 +354,27 @@ def kde2d(
         Whether to use log10(y) as the y-axis.
     """
     import plotly.graph_objects as go
-    import plotly.express as px
 
     if log_x:
         x = np.log10(x)
     if log_y:
         y = np.log10(y)
 
-    '''
+    """
     (z, X, Y) = np.histogram2d(x,y, bins=(bins_x, bins_y), density=True)
     z = z.T
     quintiles = np.percentile(np.ravel(z[z>0]), [1,10,20,30,40,50,60,70,80,90])
     z = np.searchsorted(quintiles, np.ravel(z)).reshape(z.shape)
-    '''
+    """
 
     estimator = KDE()
     z, (xx, yy) = estimator(x, y)
 
-    levels = _quantile_to_level(z.ravel(), np.linspace(.05, 1, 10))
+    levels = _quantile_to_level(z.ravel(), np.linspace(0.05, 1, 10))
     z = np.searchsorted(levels, z) + 0.1
 
-    #quintiles = np.percentile(np.ravel(z[z>0]), [5,10,20,30,40,50,60,70,80,90])
-    #z = np.searchsorted(quintiles, np.ravel(z)).reshape(z.shape)
+    # quintiles = np.percentile(np.ravel(z[z>0]), [5,10,20,30,40,50,60,70,80,90])
+    # z = np.searchsorted(quintiles, np.ravel(z)).reshape(z.shape)
 
     if log_x:
         xx = 10**xx
@@ -342,22 +388,22 @@ def kde2d(
         colorscale="Blues",
         colorbar=dict(
             title="Density",
-            #thicknessmode="pixels", thickness=50,
-            #lenmode="pixels", len=200,
-            yanchor="top", y=1,
+            # thicknessmode="pixels", thickness=50,
+            # lenmode="pixels", len=200,
+            yanchor="top",
+            y=1,
             tickvals=list(range(1, len(levels))),
             ticktext=["{:.3f}".format(x) for x in levels],
-            #ticks="outside", ticksuffix=" bills",
-            #dtick=5
+            # ticks="outside", ticksuffix=" bills",
+            # dtick=5
         ),
     )
     fig = go.Figure(data=contour)
 
-
-    #zmax = z.max()
-    #breaks = [0.0] + [x / zmax for x in np.quantile(np.ravel(z[z>0]), np.linspace(0.0, 1.0, num=len(colors)-1))]
-    #print(breaks)
-    #fig.data[0].colorscale = [(a, b[1]) for a, b in zip(breaks, colors)]
+    # zmax = z.max()
+    # breaks = [0.0] + [x / zmax for x in np.quantile(np.ravel(z[z>0]), np.linspace(0.0, 1.0, num=len(colors)-1))]
+    # print(breaks)
+    # fig.data[0].colorscale = [(a, b[1]) for a, b in zip(breaks, colors)]
 
     if log_x:
         fig.update_xaxes(type="log")
@@ -366,6 +412,7 @@ def kde2d(
     fig.update_layout(template="simple_white")
 
     return fig
+
 
 def _quantile_to_level(data, quantile):
     """Return data levels corresponding to quantile cuts of mass."""
@@ -377,11 +424,14 @@ def _quantile_to_level(data, quantile):
     levels = np.take(sorted_values, idx, mode="clip")
     return levels
 
+
 # Adapted from seaborn
 class KDE:
     """Univariate and bivariate kernel density estimator."""
+
     def __init__(
-        self, *,
+        self,
+        *,
         bw_method=None,
         bw_adjust=1,
         gridsize=100,
@@ -432,9 +482,7 @@ class KDE:
         """Create a 1D grid of evaluation points."""
         kde = self._fit(x, weights)
         bw = np.sqrt(kde.covariance.squeeze())
-        grid = self._define_support_grid(
-            x, bw, self.cut, self.clip, self.gridsize
-        )
+        grid = self._define_support_grid(x, bw, self.cut, self.clip, self.gridsize)
         return grid
 
     def _define_support_bivariate(self, x1, x2, weights):
@@ -446,12 +494,8 @@ class KDE:
         kde = self._fit([x1, x2], weights)
         bw = np.sqrt(np.diag(kde.covariance).squeeze())
 
-        grid1 = self._define_support_grid(
-            x1, bw[0], self.cut, clip[0], self.gridsize
-        )
-        grid2 = self._define_support_grid(
-            x2, bw[1], self.cut, clip[1], self.gridsize
-        )
+        grid1 = self._define_support_grid(x1, bw[0], self.cut, clip[0], self.gridsize)
+        grid2 = self._define_support_grid(x2, bw[1], self.cut, clip[1], self.gridsize)
 
         return grid1, grid2
 
@@ -488,9 +532,7 @@ class KDE:
 
         if self.cumulative:
             s_0 = support[0]
-            density = np.array([
-                kde.integrate_box_1d(s_0, s_i) for s_i in support
-            ])
+            density = np.array([kde.integrate_box_1d(s_0, s_i) for s_i in support])
         else:
             density = kde(support)
 
@@ -505,7 +547,6 @@ class KDE:
         kde = self._fit([x1, x2], weights)
 
         if self.cumulative:
-
             grid1, grid2 = support
             density = np.zeros((grid1.size, grid2.size))
             p0 = grid1.min(), grid2.min()
@@ -514,7 +555,6 @@ class KDE:
                     density[i, j] = kde.integrate_box(p0, (xi, xj))
 
         else:
-
             xx1, xx2 = np.meshgrid(*support)
             density = kde([xx1.ravel(), xx2.ravel()]).reshape(xx1.shape)
 

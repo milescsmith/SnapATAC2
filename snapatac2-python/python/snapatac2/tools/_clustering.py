@@ -5,16 +5,17 @@ import scipy.sparse as ss
 import numpy as np
 
 import snapatac2._snapatac2 as internal
-from snapatac2._utils import get_igraph_from_adjacency, is_anndata 
+from snapatac2._utils import get_igraph_from_adjacency, is_anndata
+
 
 def leiden(
     adata: internal.AnnData | internal.AnnDataSet | ss.spmatrix,
     resolution: float = 1,
-    objective_function: Literal['CPM', 'modularity', 'RBConfiguration'] = 'modularity',
+    objective_function: Literal["CPM", "modularity", "RBConfiguration"] = "modularity",
     min_cluster_size: int = 5,
     n_iterations: int = -1,
     random_state: int = 0,
-    key_added: str = 'leiden',
+    key_added: str = "leiden",
     use_leidenalg: bool = False,
     weighted: bool = False,
     inplace: bool = True,
@@ -72,7 +73,7 @@ def leiden(
     else:
         inplace = False
         adjacency = adata
-    
+
     gr = get_igraph_from_adjacency(adjacency)
 
     if weighted:
@@ -83,7 +84,6 @@ def leiden(
 
     if use_leidenalg or objective_function == "RBConfiguration":
         import leidenalg
-        from leidenalg.VertexPartition import MutableVertexPartition
 
         if objective_function == "modularity":
             partition_type = leidenalg.ModularityVertexPartition
@@ -92,17 +92,20 @@ def leiden(
         elif objective_function == "RBConfiguration":
             partition_type = leidenalg.RBConfigurationVertexPartition
         else:
-            raise ValueError(
-                'objective function is not supported: ' + partition_type
-            )
+            raise ValueError("objective function is not supported: " + partition_type)
 
         partition = leidenalg.find_partition(
-            gr, partition_type, n_iterations=n_iterations,
-            seed=random_state, resolution_parameter=resolution, weights=weights
+            gr,
+            partition_type,
+            n_iterations=n_iterations,
+            seed=random_state,
+            resolution_parameter=resolution,
+            weights=weights,
         )
     else:
         from igraph import set_random_number_generator
         import random
+
         random.seed(random_state)
         set_random_number_generator(random)
         partition = gr.community_leiden(
@@ -116,24 +119,31 @@ def leiden(
 
     groups = partition.membership
 
-    new_cl_id = dict([(cl, i) if count >= min_cluster_size else (cl, -1) for (i, (cl, count)) in enumerate(Counter(groups).most_common())])
-    for i in range(len(groups)): groups[i] = new_cl_id[groups[i]]
+    new_cl_id = dict(
+        [
+            (cl, i) if count >= min_cluster_size else (cl, -1)
+            for (i, (cl, count)) in enumerate(Counter(groups).most_common())
+        ]
+    )
+    for i in range(len(groups)):
+        groups[i] = new_cl_id[groups[i]]
 
-    groups = np.array(groups, dtype=np.compat.unicode)
+    groups = np.array(groups, dtype='U')
     if inplace:
         adata.obs[key_added] = polars.Series(
             groups,
             dtype=polars.datatypes.Categorical,
         )
         # store information on the clustering parameters
-        #adata.uns['leiden'] = {}
-        #adata.uns['leiden']['params'] = dict(
+        # adata.uns['leiden'] = {}
+        # adata.uns['leiden']['params'] = dict(
         #    resolution=resolution,
         #    random_state=random_state,
         #    n_iterations=n_iterations,
-        #)
+        # )
     else:
         return groups
+
 
 def kmeans(
     adata: internal.AnnData | internal.AnnDataSet | np.ndarray,
@@ -141,7 +151,7 @@ def kmeans(
     n_iterations: int = -1,
     random_state: int = 0,
     use_rep: str = "X_spectral",
-    key_added: str = 'kmeans',
+    key_added: str = "kmeans",
     inplace: bool = True,
 ) -> np.ndarray | None:
     """
@@ -182,22 +192,23 @@ def kmeans(
     else:
         data = adata
     groups = internal.kmeans(n_clusters, data)
-    groups = np.array(groups, dtype=np.compat.unicode)
+    groups = np.array(groups, dtype='U')
     if inplace:
         adata.obs[key_added] = polars.Series(
             groups,
             dtype=polars.datatypes.Categorical,
         )
         # store information on the clustering parameters
-        #adata.uns['kmeans'] = {}
-        #adata.uns['kmeans']['params'] = dict(
+        # adata.uns['kmeans'] = {}
+        # adata.uns['kmeans']['params'] = dict(
         #    n_clusters=n_clusters,
         #    random_state=random_state,
         #    n_iterations=n_iterations,
-        #)
+        # )
 
     else:
         return groups
+
 
 def hdbscan(
     adata: internal.AnnData,
@@ -208,7 +219,7 @@ def hdbscan(
     cluster_selection_method: str = "eom",
     random_state: int = 0,
     use_rep: str = "X_spectral",
-    key_added: str = 'hdbscan',
+    key_added: str = "hdbscan",
     **kwargs,
 ) -> None:
     """
@@ -254,19 +265,20 @@ def hdbscan(
 
     data = adata.obsm[use_rep][...]
     clusterer = hdbscan.HDBSCAN(
-        min_cluster_size = min_cluster_size,
-        min_samples = min_samples,
-        cluster_selection_epsilon = cluster_selection_epsilon,
-        alpha = alpha,
-        cluster_selection_method = cluster_selection_method,
-        **kwargs
+        min_cluster_size=min_cluster_size,
+        min_samples=min_samples,
+        cluster_selection_epsilon=cluster_selection_epsilon,
+        alpha=alpha,
+        cluster_selection_method=cluster_selection_method,
+        **kwargs,
     )
     clusterer.fit(data)
     groups = clusterer.labels_
     adata.obs[key_added] = pd.Categorical(
-        values=groups.astype('U'),
+        values=groups.astype("U"),
         categories=sorted(map(str, np.unique(groups))),
     )
+
 
 def dbscan(
     adata: internal.AnnData,
@@ -275,7 +287,7 @@ def dbscan(
     leaf_size: int = 30,
     n_jobs: int | None = None,
     use_rep: str = "X_spectral",
-    key_added: str = 'dbscan',
+    key_added: str = "dbscan",
 ) -> None:
     """
     Cluster cells into subgroups using the DBSCAN algorithm.
@@ -319,11 +331,12 @@ def dbscan(
     clustering = DBSCAN(
         eps=eps,
         min_samples=min_samples,
-        metric='euclidean',
+        metric="euclidean",
         leaf_size=leaf_size,
-        n_jobs=n_jobs).fit(data)
+        n_jobs=n_jobs,
+    ).fit(data)
     groups = clustering.labels_
     adata.obs[key_added] = pd.Categorical(
-        values=groups.astype('U'),
+        values=groups.astype("U"),
         categories=sorted(map(str, np.unique(groups))),
     )

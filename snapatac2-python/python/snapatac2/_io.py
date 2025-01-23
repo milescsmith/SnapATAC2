@@ -5,6 +5,7 @@ from anndata import AnnData
 import snapatac2._snapatac2 as internal
 from scipy.sparse import csr_matrix
 
+
 def read_10x_mtx(
     path: Path,
     file: Path | None = None,
@@ -37,10 +38,12 @@ def read_10x_mtx(
     import pandas as pd
 
     def get_files(prefix, names):
-        return list(filter(
-            lambda x: x.is_file(),
-            map(lambda x: Path(path + "/" + prefix + x), names)
-        ))
+        return list(
+            filter(
+                lambda x: x.is_file(),
+                map(lambda x: Path(path + "/" + prefix + x), names),
+            )
+        )
 
     prefix = "" if prefix is None else prefix
 
@@ -48,17 +51,22 @@ def read_10x_mtx(
     n = len(matrix_files)
     if n == 1:
         mat = csr_matrix(internal.read_mtx(str(matrix_files[0])).X[:].T)
-        adata = AnnData(X=mat) if file is None else internal.AnnData(X=mat, filename=file)
+        adata = (
+            AnnData(X=mat) if file is None else internal.AnnData(X=mat, filename=file)
+        )
     else:
-        raise ValueError("Expecting a single 'matrix.mtx' or 'matrix.mtx.gz' file, but found {}.".format(n))
+        raise ValueError(
+            "Expecting a single 'matrix.mtx' or 'matrix.mtx.gz' file, but found {}.".format(
+                n
+            )
+        )
 
     feature_files = get_files(
-        prefix,
-        ["genes.tsv", "genes.tsv.gz", "features.tsv", "features.tsv.gz"]
+        prefix, ["genes.tsv", "genes.tsv.gz", "features.tsv", "features.tsv.gz"]
     )
     n = len(feature_files)
     if n == 1:
-        df = pd.read_csv(str(feature_files[0]), sep='\t', header=None, index_col=0)
+        df = pd.read_csv(str(feature_files[0]), sep="\t", header=None, index_col=0)
         df.index.name = "index"
         adata.var_names = df.index
         adata.var = df
@@ -68,7 +76,7 @@ def read_10x_mtx(
     barcode_files = get_files(prefix, ["barcodes.tsv", "barcodes.tsv.gz"])
     n = len(barcode_files)
     if n == 1:
-        df = pd.read_csv(str(barcode_files[0]), sep='\t', header=None, index_col=0)
+        df = pd.read_csv(str(barcode_files[0]), sep="\t", header=None, index_col=0)
         df.index.name = "index"
         adata.obs_names = df.index
         adata.obs = df

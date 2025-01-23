@@ -6,6 +6,7 @@ from pathlib import Path
 import snapatac2._snapatac2 as internal
 from snapatac2._utils import get_file_format
 
+
 def export_fragments(
     adata: internal.AnnData | internal.AnnDataSet,
     groupby: str | list[str],
@@ -63,7 +64,7 @@ def export_fragments(
         groupby = adata.obs[groupby]
     if selections is not None:
         selections = set(selections)
-    
+
     if ids is None:
         ids = adata.obs_names
     elif isinstance(ids, str):
@@ -73,9 +74,19 @@ def export_fragments(
         _, compression = get_file_format(suffix)
 
     return internal.export_fragments(
-        adata, list(ids), list(groupby), out_dir, prefix, suffix, selections, 
-        min_frag_length, max_frag_length, compression, compression_level,
+        adata,
+        list(ids),
+        list(groupby),
+        out_dir,
+        prefix,
+        suffix,
+        selections,
+        min_frag_length,
+        max_frag_length,
+        compression,
+        compression_level,
     )
+
 
 def export_coverage(
     adata: internal.AnnData | internal.AnnDataSet,
@@ -88,7 +99,7 @@ def export_coverage(
     exclude_for_norm: list[str] | Path = None,
     min_frag_length: int | None = None,
     max_frag_length: int | None = 2000,
-    counting_strategy: Literal['fragment', 'insertion'] = 'fragment',
+    counting_strategy: Literal["fragment", "insertion"] = "fragment",
     smooth_base: int | None = None,
     out_dir: Path = "./",
     prefix: str = "",
@@ -216,7 +227,7 @@ def export_coverage(
         groupby = adata.obs[groupby]
     if selections is not None:
         selections = set(selections)
-    
+
     if output_format is None:
         output_format, inferred_compression = get_file_format(suffix)
         if output_format is None:
@@ -226,7 +237,24 @@ def export_coverage(
 
     n_jobs = None if n_jobs <= 0 else n_jobs
     return internal.export_coverage(
-        adata, list(groupby), bin_size, out_dir, prefix, suffix, output_format, counting_strategy,
-        selections, blacklist, normalization, include_for_norm, exclude_for_norm, min_frag_length,
-        max_frag_length, smooth_base, compression, compression_level, tempdir, n_jobs,
+        adata,
+        list(groupby),
+        bin_size,
+        out_dir,
+        prefix,
+        suffix,
+        output_format,
+        counting_strategy,
+        selections,
+        blacklist,
+        normalization,
+        include_for_norm,
+        exclude_for_norm,
+        min_frag_length,
+        max_frag_length,
+        smooth_base,
+        compression,
+        compression_level,
+        tempdir,
+        n_jobs,
     )

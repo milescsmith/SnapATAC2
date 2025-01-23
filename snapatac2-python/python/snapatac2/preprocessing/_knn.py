@@ -7,12 +7,13 @@ from scipy.sparse import csr_matrix
 from snapatac2._utils import is_anndata
 import snapatac2._snapatac2 as internal
 
+
 def knn(
     adata: internal.AnnData | internal.AnnDataSet | np.ndarray,
     n_neighbors: int = 50,
     use_dims: int | list[int] | None = None,
-    use_rep: str = 'X_spectral',
-    method: Literal['kdtree', 'hora', 'pynndescent'] = "kdtree",
+    use_rep: str = "X_spectral",
+    method: Literal["kdtree", "hora", "pynndescent"] = "kdtree",
     inplace: bool = True,
     random_state: int = 0,
 ) -> csr_matrix | None:
@@ -65,24 +66,28 @@ def knn(
             data = data[:, use_dims]
 
     n = data.shape[0]
-    if method == 'hora':
+    if method == "hora":
         adj = internal.approximate_nearest_neighbour_graph(
-            data.astype(np.float32), n_neighbors)
-    elif method == 'pynndescent':
+            data.astype(np.float32), n_neighbors
+        )
+    elif method == "pynndescent":
         import pynndescent
-        index = pynndescent.NNDescent(data, n_neighbors=max(50, n_neighbors), random_state=random_state)
+
+        index = pynndescent.NNDescent(
+            data, n_neighbors=max(50, n_neighbors), random_state=random_state
+        )
         adj, distances = index.neighbor_graph
         indices = np.ravel(adj[:, :n_neighbors])
-        distances = np.ravel(distances[:, :n_neighbors]) 
+        distances = np.ravel(distances[:, :n_neighbors])
         indptr = np.arange(0, distances.size + 1, n_neighbors)
         adj = csr_matrix((distances, indices, indptr), shape=(n, n))
         adj.sort_indices()
-    elif method == 'kdtree':
+    elif method == "kdtree":
         adj = internal.nearest_neighbour_graph(data, n_neighbors)
     else:
         raise ValueError("method must be one of 'hora', 'pynndescent', 'kdtree'")
-    
+
     if inplace:
-        adata.obsp['distances'] = adj
+        adata.obsp["distances"] = adj
     else:
         return adj
