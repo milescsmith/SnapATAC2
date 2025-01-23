@@ -6,6 +6,7 @@ import scipy.sparse as ss
 
 import snapatac2._snapatac2 as internal
 
+
 def smooth(
     adata: internal.AnnData | internal.AnnDataSet | ss.spmatrix,
     distances: str | ss.spmatrix | None = None,
@@ -28,18 +29,26 @@ def smooth(
     `adata.uns["spectral_eigenvalue"]`,
     otherwise it returns the result as a numpy array.
     """
- 
-    if distances is None: distances = "distances"
-    if isinstance(str, distances): distances = adata.obsp[distances] 
-    data = adata.X[:] if isinstance(internal.AnnData, adata) or isinstance(internal.AnnDataSet, adata) else adata
+
+    if distances is None:
+        distances = "distances"
+    if isinstance(str, distances):
+        distances = adata.obsp[distances]
+    data = (
+        adata.X[:]
+        if isinstance(internal.AnnData, adata) or isinstance(internal.AnnDataSet, adata)
+        else adata
+    )
     data = data * make_diffuse_operator(distances)
     if inplace:
         adata.X = data
     else:
         return data
 
-def make_diffuse_operator(knn_d, t = 3):
-    return make_markov_matrix(knn_d)**t
+
+def make_diffuse_operator(knn_d, t=3):
+    return make_markov_matrix(knn_d) ** t
+
 
 def make_markov_matrix(knn_d):
     """
@@ -63,5 +72,5 @@ def make_markov_matrix(knn_d):
     # make stochastic matrix
     s = np.ravel(affinity.sum(axis=1))
     for i in range(affinity.shape[0]):
-        affinity.data[affinity.indptr[i] : affinity.indptr[i+1]] /= s[i]
+        affinity.data[affinity.indptr[i] : affinity.indptr[i + 1]] /= s[i]
     return affinity

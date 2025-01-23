@@ -11,10 +11,19 @@ import snapatac2._snapatac2 as internal
 from snapatac2.genome import Genome
 from snapatac2.preprocessing._cell_calling import filter_cellular_barcodes_ordmag
 
-__all__ = ['make_fragment_file', 'import_fragments', 'import_contacts', 'import_values',
-           'add_tile_matrix', 'make_peak_matrix', 'make_gene_matrix',
-           'call_cells', 'filter_cells', 'select_features',
+__all__ = [
+    "make_fragment_file",
+    "import_fragments",
+    "import_contacts",
+    "import_values",
+    "add_tile_matrix",
+    "make_peak_matrix",
+    "make_gene_matrix",
+    "call_cells",
+    "filter_cells",
+    "select_features",
 ]
+
 
 def make_fragment_file(
     bam_file: Path,
@@ -74,7 +83,7 @@ def make_fragment_file(
         Extract barcodes from TAG fields of BAM records, e.g., `barcode_tag="CB"`.
     barcode_regex
         Extract barcodes from read names of BAM records using regular expressions.
-        Reguler expressions should contain exactly one capturing group 
+        Reguler expressions should contain exactly one capturing group
         (Parentheses group the regex between them) that matches
         the barcodes. For example, `barcode_regex="(..:..:..:..):\\\\w+$"`
         extracts `bd:69:Y6:10` from
@@ -148,10 +157,24 @@ def make_fragment_file(
         _, compression = snapatac2._utils.get_file_format(output_file)
 
     return internal.make_fragment_file(
-        bam_file, output_file, is_paired, shift_left, shift_right, chunk_size,
-        barcode_tag, barcode_regex, umi_tag, umi_regex, min_mapq, chrM, source,
-        compression, compression_level, tempdir,
+        bam_file,
+        output_file,
+        is_paired,
+        shift_left,
+        shift_right,
+        chunk_size,
+        barcode_tag,
+        barcode_regex,
+        umi_tag,
+        umi_regex,
+        min_mapq,
+        chrM,
+        source,
+        compression,
+        compression_level,
+        tempdir,
     )
+
 
 def import_fragments(
     fragment_file: Path | list[Path],
@@ -166,7 +189,7 @@ def import_fragments(
     shift_right: int = 0,
     chunk_size: int = 2000,
     tempdir: Path | None = None,
-    backend: Literal['hdf5'] = 'hdf5',
+    backend: Literal["hdf5"] = "hdf5",
     n_jobs: int = 8,
 ) -> internal.AnnData:
     """Import data fragment files and compute basic QC metrics.
@@ -196,13 +219,13 @@ def import_fragments(
     column indices within the matrix. As a result, the matrix deviates from
     the standard CSR format, and it is not advisable to use the matrix for linear
     algebra operations.
-    
+
     .. image:: /_static/images/func+import_data.svg
         :align: center
 
     Note
     ----
-    - This function accepts both single-end and paired-end reads. 
+    - This function accepts both single-end and paired-end reads.
       If the records in the fragment file contain 6 columns with the last column
       representing the strand of the fragment, the fragments are considered single-ended.
       Otherwise, the fragments are considered paired-ended.
@@ -290,7 +313,7 @@ def import_fragments(
     See Also
     --------
     make_fragment_file
-    :func:`~snapatac2.ex.export_fragments` 
+    :func:`~snapatac2.ex.export_fragments`
 
     Examples
     --------
@@ -302,7 +325,9 @@ def import_fragments(
         uns: 'reference_sequences'
         obsm: 'fragment_paired'
     """
-    chrom_sizes = chrom_sizes.chrom_sizes if isinstance(chrom_sizes, Genome) else chrom_sizes
+    chrom_sizes = (
+        chrom_sizes.chrom_sizes if isinstance(chrom_sizes, Genome) else chrom_sizes
+    )
     if len(chrom_sizes) == 0:
         raise ValueError("chrom_size cannot be empty")
 
@@ -319,25 +344,50 @@ def import_fragments(
             adatas = [AnnData() for _ in range(n)]
         else:
             if len(file) != n:
-                raise ValueError("The length of 'file' must be the same as the length of 'fragment_file'")
+                raise ValueError(
+                    "The length of 'file' must be the same as the length of 'fragment_file'"
+                )
             adatas = [internal.AnnData(filename=f, backend=backend) for f in file]
 
         snapatac2._utils.anndata_ipar(
             list(enumerate(adatas)),
             lambda x: internal.import_fragments(
-                x[1], fragment_file[x[0]], chrom_sizes, chrM, min_num_fragments,
-                sorted_by_barcode, shift_left, shift_right, chunk_size, whitelist, tempdir,
+                x[1],
+                fragment_file[x[0]],
+                chrom_sizes,
+                chrM,
+                min_num_fragments,
+                sorted_by_barcode,
+                shift_left,
+                shift_right,
+                chunk_size,
+                whitelist,
+                tempdir,
             ),
             n_jobs=n_jobs,
         )
         return adatas
     else:
-        adata = AnnData() if file is None else internal.AnnData(filename=file, backend=backend)
+        adata = (
+            AnnData()
+            if file is None
+            else internal.AnnData(filename=file, backend=backend)
+        )
         internal.import_fragments(
-            adata, fragment_file, chrom_sizes, chrM, min_num_fragments,
-            sorted_by_barcode, shift_left, shift_right, chunk_size, whitelist, tempdir,
+            adata,
+            fragment_file,
+            chrom_sizes,
+            chrM,
+            min_num_fragments,
+            sorted_by_barcode,
+            shift_left,
+            shift_right,
+            chunk_size,
+            whitelist,
+            tempdir,
         )
         return adata
+
 
 def import_contacts(
     contact_file: Path,
@@ -348,7 +398,7 @@ def import_contacts(
     bin_size: int = 500000,
     chunk_size: int = 200,
     tempdir: Path | None = None,
-    backend: Literal['hdf5'] = 'hdf5',
+    backend: Literal["hdf5"] = "hdf5",
 ) -> internal.AnnData:
     """Import chromatin contacts.
 
@@ -365,7 +415,7 @@ def import_contacts(
         `{"chr1": 2393, "chr2": 2344, ...}`.
     sorted_by_barcode
         Whether the fragment file has been sorted by cell barcodes.
-        If `sorted_by_barcode == True`, this function makes use of small fixed amout of 
+        If `sorted_by_barcode == True`, this function makes use of small fixed amout of
         memory. If `sorted_by_barcode == False` and `low_memory == False`,
         all data will be kept in memory. See `low_memory` for more details.
     bin_size
@@ -385,15 +435,26 @@ def import_contacts(
         cells and columns to regions. If `file=None`, an in-memory AnnData will be
         returned, otherwise a backed AnnData is returned.
     """
-    chrom_sizes = chrom_sizes.chrom_sizes if isinstance(chrom_sizes, Genome) else chrom_sizes
+    chrom_sizes = (
+        chrom_sizes.chrom_sizes if isinstance(chrom_sizes, Genome) else chrom_sizes
+    )
     if len(chrom_sizes) == 0:
         raise ValueError("chrom_size cannot be empty")
 
-    adata = AnnData() if file is None else internal.AnnData(filename=file, backend=backend)
+    adata = (
+        AnnData() if file is None else internal.AnnData(filename=file, backend=backend)
+    )
     internal.import_contacts(
-        adata, contact_file, chrom_sizes, sorted_by_barcode, bin_size, chunk_size, tempdir
+        adata,
+        contact_file,
+        chrom_sizes,
+        sorted_by_barcode,
+        bin_size,
+        chunk_size,
+        tempdir,
     )
     return adata
+
 
 def import_values(
     input_dir: Path,
@@ -401,7 +462,7 @@ def import_values(
     *,
     file: Path | None = None,
     chunk_size: int = 200,
-    backend: Literal['hdf5'] = 'hdf5',
+    backend: Literal["hdf5"] = "hdf5",
 ) -> internal.AnnData:
     """Import values associated with base pairs, typically from experiments like
     whole-genome bisulfite sequencing (WGBS).
@@ -429,15 +490,18 @@ def import_values(
         cells and columns to regions. If `file=None`, an in-memory AnnData will be
         returned, otherwise a backed AnnData is returned.
     """
-    chrom_sizes = chrom_sizes.chrom_sizes if isinstance(chrom_sizes, Genome) else chrom_sizes
+    chrom_sizes = (
+        chrom_sizes.chrom_sizes if isinstance(chrom_sizes, Genome) else chrom_sizes
+    )
     if len(chrom_sizes) == 0:
         raise ValueError("chrom_size cannot be empty")
 
-    adata = AnnData() if file is None else internal.AnnData(filename=file, backend=backend)
-    internal.import_values(
-        adata, input_dir, chrom_sizes, chunk_size
+    adata = (
+        AnnData() if file is None else internal.AnnData(filename=file, backend=backend)
     )
+    internal.import_values(adata, input_dir, chrom_sizes, chunk_size)
     return adata
+
 
 def add_tile_matrix(
     adata: internal.AnnData | list[internal.AnnData],
@@ -448,11 +512,13 @@ def add_tile_matrix(
     exclude_chroms: list[str] | str | None = ["chrM", "chrY", "M", "Y"],
     min_frag_size: int | None = None,
     max_frag_size: int | None = None,
-    counting_strategy: Literal['fragment', 'insertion', 'paired-insertion'] = 'paired-insertion',
-    value_type: Literal['target', 'total', 'fraction'] = 'target',
-    summary_type: Literal['sum', 'mean'] = 'sum',
+    counting_strategy: Literal[
+        "fragment", "insertion", "paired-insertion"
+    ] = "paired-insertion",
+    value_type: Literal["target", "total", "fraction"] = "target",
+    summary_type: Literal["sum", "mean"] = "sum",
     file: Path | None = None,
-    backend: Literal['hdf5'] = 'hdf5',
+    backend: Literal["hdf5"] = "hdf5",
     n_jobs: int = 8,
 ) -> internal.AnnData | None:
     """Generate cell by bin count matrix.
@@ -492,7 +558,7 @@ def add_tile_matrix(
         of interest [Miao24]_.
         Note that this parameter has no effect if input are single-end reads.
     value_type
-        The type of value to use from `.obsm['_values']`, only available when 
+        The type of value to use from `.obsm['_values']`, only available when
         data is imported using :func:`~snapatac2.pp.import_values`. It must be one of the following:
         "target", "total", or "fraction". "target" means the value is the number
         of recrods that are with postive measurements, e.g., number of methylated bases.
@@ -501,7 +567,7 @@ def add_tile_matrix(
         records that are positive, e.g., the fraction of methylated bases.
     summary_type
         The type of summary to use when multiple values are found in a bin. This parameter
-        is only used when `.obsm['_values']` exists, which is created by :func:`~snapatac2.pp.import_values`. 
+        is only used when `.obsm['_values']` exists, which is created by :func:`~snapatac2.pp.import_values`.
         It must be one of the following: "sum" or "mean".
     file
         File name of the output file used to store the result. If provided, result will
@@ -512,7 +578,7 @@ def add_tile_matrix(
     n_jobs
         Number of jobs to run in parallel when `adata` is a list.
         If `n_jobs=-1`, all CPUs will be used.
-    
+
     Returns
     -------
     AnnData | ad.AnnData | None
@@ -536,8 +602,20 @@ def add_tile_matrix(
         uns: 'reference_sequences'
         obsm: 'fragment_paired'
     """
+
     def fun(data, out):
-        internal.mk_tile_matrix(data, bin_size, chunk_size, counting_strategy, value_type, summary_type, exclude_chroms, min_frag_size, max_frag_size, out)
+        internal.mk_tile_matrix(
+            data,
+            bin_size,
+            chunk_size,
+            counting_strategy,
+            value_type,
+            summary_type,
+            exclude_chroms,
+            min_frag_size,
+            max_frag_size,
+            out,
+        )
 
     if isinstance(exclude_chroms, str):
         exclude_chroms = [exclude_chroms]
@@ -562,25 +640,28 @@ def add_tile_matrix(
         fun(adata, out)
         return out
 
+
 def make_peak_matrix(
     adata: internal.AnnData | internal.AnnDataSet,
     *,
     use_rep: str | list[str] | None = None,
     inplace: bool = False,
     file: Path | None = None,
-    backend: Literal['hdf5'] = 'hdf5',
+    backend: Literal["hdf5"] = "hdf5",
     peak_file: Path | None = None,
     chunk_size: int = 500,
     use_x: bool = False,
     min_frag_size: int | None = None,
     max_frag_size: int | None = None,
-    counting_strategy: Literal['fragment', 'insertion', 'paired-insertion'] = 'paired-insertion',
-    value_type: Literal['target', 'total', 'fraction'] = 'target',
-    summary_type: Literal['sum', 'mean'] = 'sum',
+    counting_strategy: Literal[
+        "fragment", "insertion", "paired-insertion"
+    ] = "paired-insertion",
+    value_type: Literal["target", "total", "fraction"] = "target",
+    summary_type: Literal["sum", "mean"] = "sum",
 ) -> internal.AnnData:
     """Generate cell by peak count matrix.
 
-    This function will generate a cell by peak count matrix and store it in a 
+    This function will generate a cell by peak count matrix and store it in a
     new .h5ad file.
 
     :func:`~snapatac2.pp.import_fragments` must be ran first in order to use this function.
@@ -625,7 +706,7 @@ def make_peak_matrix(
         of interest [Miao24]_.
         Note that this parameter has no effect if input are single-end reads.
     value_type
-        The type of value to use from `.obsm['_values']`, only available when 
+        The type of value to use from `.obsm['_values']`, only available when
         data is imported using :func:`~snapatac2.pp.import_values`. It must be one of the following:
         "target", "total", or "fraction". "target" means the value is the number
         of recrods that are with postive measurements, e.g., number of methylated bases.
@@ -634,7 +715,7 @@ def make_peak_matrix(
         records that are positive, e.g., the fraction of methylated bases.
     summary_type
         The type of summary to use when multiple values are found in a bin. This parameter
-        is only used when `.obsm['_values']` exists, which is created by :func:`~snapatac2.pp.import_values`. 
+        is only used when `.obsm['_values']` exists, which is created by :func:`~snapatac2.pp.import_values`.
         It must be one of the following: "sum" or "mean".
 
     Returns
@@ -661,7 +742,7 @@ def make_peak_matrix(
     import gzip
 
     if peak_file is not None and use_rep is not None:
-        raise RuntimeError("'peak_file' and 'use_rep' cannot be both set") 
+        raise RuntimeError("'peak_file' and 'use_rep' cannot be both set")
 
     if use_rep is None and peak_file is None:
         use_rep = "peaks"
@@ -674,10 +755,10 @@ def make_peak_matrix(
 
     if peak_file is not None:
         if Path(peak_file).suffix == ".gz":
-            with gzip.open(peak_file, 'rt') as f:
+            with gzip.open(peak_file, "rt") as f:
                 peaks = [line.strip() for line in f]
         else:
-            with open(peak_file, 'r') as f:
+            with open(peak_file, "r") as f:
                 peaks = [line.strip() for line in f]
 
     if inplace:
@@ -689,8 +770,20 @@ def make_peak_matrix(
             out = AnnData(obs=adata.obs[:])
     else:
         out = internal.AnnData(filename=file, backend=backend, obs=adata.obs[:])
-    internal.mk_peak_matrix(adata, peaks, chunk_size, use_x, counting_strategy, value_type, summary_type, min_frag_size, max_frag_size, out)
+    internal.mk_peak_matrix(
+        adata,
+        peaks,
+        chunk_size,
+        use_x,
+        counting_strategy,
+        value_type,
+        summary_type,
+        min_frag_size,
+        max_frag_size,
+        out,
+    )
     return out
+
 
 def make_gene_matrix(
     adata: internal.AnnData | internal.AnnDataSet,
@@ -698,10 +791,10 @@ def make_gene_matrix(
     *,
     inplace: bool = False,
     file: Path | None = None,
-    backend: Literal['hdf5'] | None = 'hdf5',
+    backend: Literal["hdf5"] | None = "hdf5",
     chunk_size: int = 500,
     use_x: bool = False,
-    id_type: Literal['gene', 'transcript'] = "gene",
+    id_type: Literal["gene", "transcript"] = "gene",
     upstream: int = 2000,
     downstream: int = 0,
     include_gene_body: bool = True,
@@ -711,7 +804,9 @@ def make_gene_matrix(
     gene_id_key: str = "gene_id",
     min_frag_size: int | None = None,
     max_frag_size: int | None = None,
-    counting_strategy: Literal['fragment', 'insertion', 'paired-insertion'] = 'paired-insertion',
+    counting_strategy: Literal[
+        "fragment", "insertion", "paired-insertion"
+    ] = "paired-insertion",
 ) -> internal.AnnData:
     """Generate cell by gene activity matrix.
 
@@ -719,7 +814,7 @@ def make_gene_matrix(
     regulatory domain. The regulatory domain is initially defined as the TSS or the
     whole gene body (if `include_gene_body=True`). We then extends this domain
     by `upstream` and `downstream` base pairs on both sides.
-      
+
     The result will be stored in a new file and a new AnnData object
     will be created.
     :func:`~snapatac2.pp.import_fragments` must be ran first in order to use this function.
@@ -808,11 +903,26 @@ def make_gene_matrix(
             out = AnnData(obs=adata.obs[:])
     else:
         out = internal.AnnData(filename=file, backend=backend, obs=adata.obs[:])
-    internal.mk_gene_matrix(adata, gene_anno, chunk_size, use_x, id_type,
-        upstream, downstream, include_gene_body,
-        transcript_name_key, transcript_id_key, gene_name_key, gene_id_key,
-        counting_strategy, min_frag_size, max_frag_size, out)
+    internal.mk_gene_matrix(
+        adata,
+        gene_anno,
+        chunk_size,
+        use_x,
+        id_type,
+        upstream,
+        downstream,
+        include_gene_body,
+        transcript_name_key,
+        transcript_id_key,
+        gene_name_key,
+        gene_id_key,
+        counting_strategy,
+        min_frag_size,
+        max_frag_size,
+        out,
+    )
     return out
+
 
 def call_cells(
     data: internal.AnnData | list[internal.AnnData],
@@ -826,7 +936,7 @@ def call_cells(
     This implements Cell Ranger's
     [cell calling algorithm](https://www.10xgenomics.com/support/software/cell-ranger/latest/algorithms-overview/cr-gex-algorithm),
     which is based on two primary algorithms: Order of magnitude (OrdMag) and EmptyDrops.
-    
+
     Currently only OrdMag is implemented.
 
     Parameters
@@ -846,7 +956,7 @@ def call_cells(
     Returns
     -------
     np.ndarray | None:
-        If `inplace = True`, directly subsets the data matrix. Otherwise return 
+        If `inplace = True`, directly subsets the data matrix. Otherwise return
         indices of cells that pass the filtering.
     """
     if isinstance(data, list):
@@ -869,6 +979,7 @@ def call_cells(
             data._inplace_subset_obs(selected_cells)
     else:
         return selected_cells
+
 
 def filter_cells(
     data: internal.AnnData | list[internal.AnnData],
@@ -908,13 +1019,15 @@ def filter_cells(
     Returns
     -------
     np.ndarray | None:
-        If `inplace = True`, directly subsets the data matrix. Otherwise return 
+        If `inplace = True`, directly subsets the data matrix. Otherwise return
         indices of cells that pass the filtering.
     """
     if isinstance(data, list):
         result = snapatac2._utils.anndata_par(
             data,
-            lambda x: filter_cells(x, min_counts, min_tsse, max_counts, max_tsse, inplace=inplace),
+            lambda x: filter_cells(
+                x, min_counts, min_tsse, max_counts, max_tsse, inplace=inplace
+            ),
             n_jobs=n_jobs,
         )
         if inplace:
@@ -923,10 +1036,14 @@ def filter_cells(
             return result
 
     selected_cells = True
-    if min_counts: selected_cells &= data.obs["n_fragment"] >= min_counts
-    if max_counts: selected_cells &= data.obs["n_fragment"] <= max_counts
-    if min_tsse: selected_cells &= data.obs["tsse"] >= min_tsse
-    if max_tsse: selected_cells &= data.obs["tsse"] <= max_tsse
+    if min_counts:
+        selected_cells &= data.obs["n_fragment"] >= min_counts
+    if max_counts:
+        selected_cells &= data.obs["n_fragment"] <= max_counts
+    if min_tsse:
+        selected_cells &= data.obs["tsse"] >= min_tsse
+    if max_tsse:
+        selected_cells &= data.obs["tsse"] <= max_tsse
 
     selected_cells = np.flatnonzero(selected_cells)
     if inplace:
@@ -936,6 +1053,7 @@ def filter_cells(
             data._inplace_subset_obs(selected_cells)
     else:
         return selected_cells
+
 
 def _find_most_accessible_features(
     feature_count,
@@ -951,9 +1069,10 @@ def _find_most_accessible_features(
     n = idx.size
     n_lower = int(filter_lower_quantile * n)
     n_upper = int(filter_upper_quantile * n)
-    idx = idx[n_lower:n-n_upper]
+    idx = idx[n_lower : n - n_upper]
     return idx[::-1][:total_features]
- 
+
+
 def select_features(
     adata: internal.AnnData | internal.AnnDataSet | list[internal.AnnData],
     n_features: int = 500000,
@@ -1002,7 +1121,7 @@ def select_features(
         None-zero features listed here will be kept regardless of the other
         filtering criteria.
         If a feature is present in both whitelist and blacklist, it will be kept.
-    blacklist 
+    blacklist
         A user provided bed file containing genome-wide blacklist regions.
         Features that are overlapped with these regions will be removed.
     max_iter
@@ -1017,7 +1136,7 @@ def select_features(
         Number of parallel jobs to use when `adata` is a list.
     verbose
         Whether to print progress messages.
-    
+
     Returns
     -------
     np.ndarray | None:
@@ -1028,9 +1147,17 @@ def select_features(
     if isinstance(adata, list):
         result = snapatac2._utils.anndata_par(
             adata,
-            lambda x: select_features(x, n_features, filter_lower_quantile,
-                                      filter_upper_quantile, whitelist,
-                                      blacklist, max_iter, inplace, verbose=False),
+            lambda x: select_features(
+                x,
+                n_features,
+                filter_lower_quantile,
+                filter_upper_quantile,
+                whitelist,
+                blacklist,
+                max_iter,
+                inplace,
+                verbose=False,
+            ),
             n_jobs=n_jobs,
         )
         if inplace:
@@ -1040,20 +1167,25 @@ def select_features(
 
     count = np.zeros(adata.shape[1])
     for batch, _, _ in adata.chunked_X(2000):
-        count += np.ravel(batch.sum(axis = 0))
-    adata.var['count'] = count
+        count += np.ravel(batch.sum(axis=0))
+    adata.var["count"] = count
 
     selected_features = _find_most_accessible_features(
-        count, filter_lower_quantile, filter_upper_quantile, n_features)
+        count, filter_lower_quantile, filter_upper_quantile, n_features
+    )
 
     if blacklist is not None:
         blacklist = np.array(internal.intersect_bed(adata.var_names, str(blacklist)))
-        selected_features = selected_features[np.logical_not(blacklist[selected_features])]
+        selected_features = selected_features[
+            np.logical_not(blacklist[selected_features])
+        ]
 
     # Iteratively select features
     iter = 1
     while iter < max_iter:
-        embedding = snapatac2.tl.spectral(adata, features=selected_features, inplace=False)[1]
+        embedding = snapatac2.tl.spectral(
+            adata, features=selected_features, inplace=False
+        )[1]
         clusters = snapatac2.tl.leiden(snapatac2.pp.knn(embedding, inplace=False))
         rpm = snapatac2.tl.aggregate_X(adata, groupby=clusters).X
         var = np.var(np.log(rpm + 1), axis=0)
@@ -1061,7 +1193,9 @@ def select_features(
 
         # Apply blacklist to the result
         if blacklist is not None:
-            selected_features = selected_features[np.logical_not(blacklist[selected_features])]
+            selected_features = selected_features[
+                np.logical_not(blacklist[selected_features])
+            ]
         iter += 1
 
     result = np.zeros(adata.shape[1], dtype=bool)
@@ -1072,7 +1206,7 @@ def select_features(
         whitelist = np.array(internal.intersect_bed(adata.var_names, str(whitelist)))
         whitelist &= count != 0
         result |= whitelist
-    
+
     if verbose:
         logging.info(f"Selected {result.sum()} features.")
 

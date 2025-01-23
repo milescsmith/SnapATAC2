@@ -7,11 +7,13 @@ import logging
 MIN_RECOVERED_CELLS_PER_GEM_GROUP = 50
 MAX_RECOVERED_CELLS_PER_GEM_GROUP = 1 << 18
 
+
 class Metrics:
     def update(self, other):
         for k, v in other.__dict__.items():
             if v is not None:
                 setattr(self, k, v)
+
 
 class BarcodeFilterResults(Metrics):
     def __init__(self, default_value: int = 0):
@@ -42,12 +44,13 @@ class BarcodeFilterResults(Metrics):
             for key, value in self.__dict__.items()
         }
 
+
 def filter_cellular_barcodes_ordmag(
     bc_counts: np.ndarray[int, np.dtype[np.int_]],
     recovered_cells: int | None,
     chemistry_description: str | None = None,
     num_probe_barcodes: int | None = None,
-    ordmag_recovered_cells_quantile: float = .99,
+    ordmag_recovered_cells_quantile: float = 0.99,
     num_bootstrap_samples: int = 100,
 ):
     """All barcodes that are close to within an order of magnitude of a top barcode.
@@ -61,7 +64,9 @@ def filter_cellular_barcodes_ordmag(
 
     nonzero_bc_counts = bc_counts[bc_counts > 0]
     if len(nonzero_bc_counts) == 0:
-        logging.warn("All barcodes do not have enough reads for ordmag, allowing no bcs through")
+        logging.warn(
+            "All barcodes do not have enough reads for ordmag, allowing no bcs through"
+        )
         return [], metrics
 
     if recovered_cells is None:
@@ -78,7 +83,8 @@ def filter_cellular_barcodes_ordmag(
             np.array(
                 [
                     estimate_recovered_cells_ordmag(
-                        rs.choice(nonzero_bc_counts, len(nonzero_bc_counts)), max_expected_cells,
+                        rs.choice(nonzero_bc_counts, len(nonzero_bc_counts)),
+                        max_expected_cells,
                         ordmag_recovered_cells_quantile,
                     )
                     for _ in range(num_bootstrap_samples)
@@ -86,13 +92,17 @@ def filter_cellular_barcodes_ordmag(
             ),
             axis=0,
         )
-        recovered_cells = max(int(np.round(recovered_cells)), MIN_RECOVERED_CELLS_PER_GEM_GROUP)
+        recovered_cells = max(
+            int(np.round(recovered_cells)), MIN_RECOVERED_CELLS_PER_GEM_GROUP
+        )
         logging.info(f"Found recovered_cells = {recovered_cells} with loss = {loss}")
     else:
         recovered_cells = max(recovered_cells, MIN_RECOVERED_CELLS_PER_GEM_GROUP)
         logging.info(f"Using provided recovered_cells = {recovered_cells}")
 
-    baseline_bc_idx = int(np.round(float(recovered_cells) * (1 - ordmag_recovered_cells_quantile)))
+    baseline_bc_idx = int(
+        np.round(float(recovered_cells) * (1 - ordmag_recovered_cells_quantile))
+    )
     baseline_bc_idx = min(baseline_bc_idx, len(nonzero_bc_counts) - 1)
 
     # Bootstrap sampling; run algo with many random samples of the data
@@ -113,7 +123,10 @@ def filter_cellular_barcodes_ordmag(
     assert top_n <= len(nonzero_bc_counts), "Invalid selection of 0-count barcodes!"
     return top_bc_idx, metrics
 
-def get_empty_drops_range(chemistry_description: str, num_probe_bcs: int | None) -> tuple[int, int]:
+
+def get_empty_drops_range(
+    chemistry_description: str, num_probe_bcs: int | None
+) -> tuple[int, int]:
     """Gets the range of values to use for empty drops background given a chemistry description.
     Cell Ranger's grid-search ranges from 2 to ~45,000 cells for NextGEM chemistries and 2 to ~80,000 for GEM-X chemistries.
 
@@ -127,10 +140,15 @@ def get_empty_drops_range(chemistry_description: str, num_probe_bcs: int | None)
     if chemistry_description == "v3LT":
         N_PARTITIONS = 9000
     elif chemistry_description == "v4":
-        N_PARTITIONS = 80000 * num_probe_bcs if num_probe_bcs and num_probe_bcs > 1 else 160000
+        N_PARTITIONS = (
+            80000 * num_probe_bcs if num_probe_bcs and num_probe_bcs > 1 else 160000
+        )
     else:
-        N_PARTITIONS = 45000 * num_probe_bcs if num_probe_bcs and num_probe_bcs > 1 else 90000
+        N_PARTITIONS = (
+            45000 * num_probe_bcs if num_probe_bcs and num_probe_bcs > 1 else 90000
+        )
     return (N_PARTITIONS // 2, N_PARTITIONS)
+
 
 def estimate_recovered_cells_ordmag(
     nonzero_bc_counts,
@@ -145,11 +163,14 @@ def estimate_recovered_cells_ordmag(
     recovered_cells = np.linspace(1, np.log2(max_expected_cells), 2000)
     recovered_cells = np.unique(np.round(np.power(2, recovered_cells)).astype(int))
     baseline_bc_idx = np.round(recovered_cells * (1 - ordmag_recovered_cells_quantile))
-    baseline_bc_idx = np.minimum(baseline_bc_idx.astype(int), len(nonzero_bc_counts) - 1)
+    baseline_bc_idx = np.minimum(
+        baseline_bc_idx.astype(int), len(nonzero_bc_counts) - 1
+    )
     filtered_cells = find_within_ordmag(nonzero_bc_counts, baseline_bc_idx)
     loss = np.power(filtered_cells - recovered_cells, 2) / recovered_cells
     idx = np.argmin(loss)
     return recovered_cells[idx], loss[idx]
+
 
 def find_within_ordmag(x, baseline_idx):
     x_ascending = np.sort(x)
@@ -159,6 +180,7 @@ def find_within_ordmag(x, baseline_idx):
     # Return the index corresponding to the cutoff in descending order
     return len(x) - np.searchsorted(x_ascending, cutoff)
 
+
 def summarize_bootstrapped_top_n(top_n_boot, nonzero_counts):
     top_n_bcs_mean = np.mean(top_n_boot)
     top_n_bcs_var = np.var(top_n_boot)
@@ -166,8 +188,12 @@ def summarize_bootstrapped_top_n(top_n_boot, nonzero_counts):
     result = BarcodeFilterResults()
     result.filtered_bcs_var = top_n_bcs_var
     result.filtered_bcs_cv = top_n_bcs_sd / top_n_bcs_mean
-    result.filtered_bcs_lb = np.round(sp_stats.norm.ppf(0.025, top_n_bcs_mean, top_n_bcs_sd), 0)
-    result.filtered_bcs_ub = np.round(sp_stats.norm.ppf(0.975, top_n_bcs_mean, top_n_bcs_sd), 0)
+    result.filtered_bcs_lb = np.round(
+        sp_stats.norm.ppf(0.025, top_n_bcs_mean, top_n_bcs_sd), 0
+    )
+    result.filtered_bcs_ub = np.round(
+        sp_stats.norm.ppf(0.975, top_n_bcs_mean, top_n_bcs_sd), 0
+    )
 
     nbcs = int(np.round(top_n_bcs_mean))
     result.filtered_bcs = nbcs

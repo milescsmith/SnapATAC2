@@ -10,13 +10,14 @@ from snapatac2._utils import fetch_seq
 from snapatac2.genome import Genome
 from snapatac2.tools._diff import _p_adjust_bh
 
+
 def motif_enrichment(
     motifs: list[PyDNAMotif],
     regions: dict[str, list[str]],
     genome_fasta: Path | Genome,
     background: list[str] | None = None,
-    method: Literal['binomial', 'hypergeometric'] | None = None,
-) -> dict[str, 'polars.DataFrame']:
+    method: Literal["binomial", "hypergeometric"] | None = None,
+) -> dict[str, "polars.DataFrame"]:
     """
     Identify enriched transcription factor motifs.
 
@@ -61,7 +62,9 @@ def motif_enrichment(
     region_to_idx = dict(map(lambda x: (x[1], x[0]), enumerate(all_regions)))
 
     logging.info("Fetching {} sequences ...".format(len(all_regions)))
-    genome = genome_fasta.fasta if isinstance(genome_fasta, Genome) else str(genome_fasta)
+    genome = (
+        genome_fasta.fasta if isinstance(genome_fasta, Genome) else str(genome_fasta)
+    )
     genome = Fasta(genome, one_based_attributes=False)
     sequences = [fetch_seq(genome, region) for region in all_regions]
 
@@ -83,15 +86,19 @@ def motif_enrichment(
         else:
             total_bg = len(background)
             bound_bg = count_occurrence(background, region_to_idx, bound)
-        
+
         for key, val in regions.items():
             total_fg = len(val)
             bound_fg = count_occurrence(val, region_to_idx, bound)
 
             if bound_fg == 0:
-                log_fc = 0 if bound_bg == 0 else float('-inf')
+                log_fc = 0 if bound_bg == 0 else float("-inf")
             else:
-                log_fc = log2((bound_fg / total_fg) / (bound_bg / total_bg)) if bound_bg > 0 else float('inf')
+                log_fc = (
+                    log2((bound_fg / total_fg) / (bound_bg / total_bg))
+                    if bound_bg > 0
+                    else float("inf")
+                )
 
             motif_id.append(motif.id)
             motif_name.append(motif.name)
@@ -102,7 +109,7 @@ def motif_enrichment(
             N_fg.append(total_fg)
             n_bg.append(bound_bg)
             N_bg.append(total_bg)
-          
+
     if method == "binomial":
         pval = binom.cdf(n_fg, N_fg, np.array(n_bg) / np.array(N_bg))
     elif method == "hypergeometric":
@@ -111,18 +118,28 @@ def motif_enrichment(
         raise NameError("'method' needs to be 'binomial' or 'hypergeometric'")
 
     result = dict(
-        (key, {'id': [], 'name': [], 'family': [], 'log2(fold change)': [], 'p-value': []}) for key in regions.keys()
+        (
+            key,
+            {
+                "id": [],
+                "name": [],
+                "family": [],
+                "log2(fold change)": [],
+                "p-value": [],
+            },
+        )
+        for key in regions.keys()
     )
     for i, key in enumerate(group_name):
         log_fc = fold_change[i]
         p = (1 - pval[i]) if log_fc >= 0 else pval[i]
-        result[key]['id'].append(motif_id[i])
-        result[key]['name'].append(motif_name[i])
-        result[key]['family'].append(motif_family[i])
-        result[key]['log2(fold change)'].append(log_fc)
-        result[key]['p-value'].append(float(p))
+        result[key]["id"].append(motif_id[i])
+        result[key]["name"].append(motif_name[i])
+        result[key]["family"].append(motif_family[i])
+        result[key]["log2(fold change)"].append(log_fc)
+        result[key]["p-value"].append(float(p))
 
     for key in result.keys():
-        result[key]['adjusted p-value'] = _p_adjust_bh(result[key]['p-value'])
+        result[key]["adjusted p-value"] = _p_adjust_bh(result[key]["p-value"])
         result[key] = pl.DataFrame(result[key])
     return result

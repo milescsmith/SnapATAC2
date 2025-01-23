@@ -2,17 +2,24 @@ import snapatac2 as snap
 from pathlib import Path
 import numpy as np
 
+
 def h5ad(dir=Path("./")):
     import uuid
+
     dir.mkdir(exist_ok=True)
     return str(dir / Path(str(uuid.uuid4()) + ".h5ad"))
+
 
 def test_exclude():
     fragment_file = snap.datasets.pbmc500(downsample=True)
 
     data1 = snap.pp.import_fragments(
         fragment_file,
-        chrom_sizes={chr: size for chr, size in snap.genome.hg38.chrom_sizes.items() if chr not in ["chr1", "chr10"]},
+        chrom_sizes={
+            chr: size
+            for chr, size in snap.genome.hg38.chrom_sizes.items()
+            if chr not in ["chr1", "chr10"]
+        },
         sorted_by_barcode=False,
         min_num_fragments=0,
     )
@@ -29,6 +36,7 @@ def test_exclude():
     np.testing.assert_array_equal(data1.X.data, data2.X.data)
     np.testing.assert_array_equal(data1.obs_names, data2.obs_names)
     np.testing.assert_array_equal(data1.var_names, data2.var_names)
+
 
 def pipeline(data):
     snap.metrics.frag_size_distr(data)
@@ -54,6 +62,7 @@ def pipeline(data):
 
     snap.ex.export_coverage(data, groupby="leiden")
 
+
 def test_backed(tmp_path):
     fragment_file = snap.datasets.pbmc500(downsample=True)
 
@@ -64,6 +73,7 @@ def test_backed(tmp_path):
         sorted_by_barcode=False,
     )
     pipeline(data)
+
 
 def test_in_memory():
     fragment_file = snap.datasets.pbmc500(downsample=True)

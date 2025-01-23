@@ -4,14 +4,15 @@ import numpy as np
 import itertools
 
 import snapatac2._snapatac2 as internal
-from snapatac2._utils import is_anndata 
+from snapatac2._utils import is_anndata
+
 
 def scanorama_integrate(
     adata: internal.AnnData | internal.AnnDataSet | np.adarray,
     *,
     batch: str | list[str],
     n_neighbors: int = 20,
-    use_rep: str = 'X_spectral',
+    use_rep: str = "X_spectral",
     use_dims: int | list[int] | None = None,
     groupby: str | list[str] | None = None,
     key_added: str | None = None,
@@ -60,7 +61,7 @@ def scanorama_integrate(
         if `inplace=True` it updates adata with the field
         ``adata.obsm[`use_rep`_scanorama]``, containing adjusted principal components.
         Otherwise, it returns the result as a numpy array.
-    
+
     See Also
     --------
     :func:`~snapatac2.tl.spectral`: compute spectral embedding of the data matrix.
@@ -95,21 +96,33 @@ def scanorama_integrate(
         inplace = False
 
     # Use only the specified dimensions
-    if isinstance(use_dims, int): use_dims = range(use_dims) 
+    if isinstance(use_dims, int):
+        use_dims = range(use_dims)
     mat = mat if use_dims is None else mat[:, use_dims]
 
     if isinstance(batch, str):
         batch = adata.obs[batch]
 
     if groupby is None:
-        mat = _scanorama(mat, batch, n_neighbors, sigma, approx, alpha, batch_size, **kwargs)
+        mat = _scanorama(
+            mat, batch, n_neighbors, sigma, approx, alpha, batch_size, **kwargs
+        )
     else:
-        if isinstance(groupby, str): groupby = adata.obs[groupby]
+        if isinstance(groupby, str):
+            groupby = adata.obs[groupby]
         groups = list(set(groupby))
         for group in groups:
             group_idx = [i for i, x in enumerate(groupby) if x == group]
             mat[group_idx, :] = _scanorama(
-                mat[group_idx, :], batch[group_idx], n_neighbors, sigma, approx, alpha, batch_size, **kwargs)
+                mat[group_idx, :],
+                batch[group_idx],
+                n_neighbors,
+                sigma,
+                approx,
+                alpha,
+                batch_size,
+                **kwargs,
+            )
 
     if inplace:
         if key_added is None:
@@ -119,12 +132,14 @@ def scanorama_integrate(
     else:
         return mat
 
-def _scanorama(data_matrix, batch_labels, knn, sigma, approx, alpha, batch_size, **kwargs):
+
+def _scanorama(
+    data_matrix, batch_labels, knn, sigma, approx, alpha, batch_size, **kwargs
+):
     try:
         import scanorama
     except ImportError:
         raise ImportError("\nplease install Scanorama:\n\n\tpip install scanorama")
-    import pandas as pd
 
     label_uniq = list(set(batch_labels))
 
@@ -134,18 +149,20 @@ def _scanorama(data_matrix, batch_labels, knn, sigma, approx, alpha, batch_size,
         for label in label_uniq:
             idx = [i for i, x in enumerate(batch_labels) if x == label]
             batch_idx.append(idx)
-            data_by_batch.append(data_matrix[idx,:])
-        new_matrix = np.concatenate(scanorama.assemble(
-            data_by_batch,
-            knn=knn,
-            sigma=sigma,
-            approx=approx,
-            alpha=alpha,
-            ds_names=label_uniq,
-            batch_size=batch_size,
-            verbose=0,
-            **kwargs,
-        ))
+            data_by_batch.append(data_matrix[idx, :])
+        new_matrix = np.concatenate(
+            scanorama.assemble(
+                data_by_batch,
+                knn=knn,
+                sigma=sigma,
+                approx=approx,
+                alpha=alpha,
+                ds_names=label_uniq,
+                batch_size=batch_size,
+                verbose=0,
+                **kwargs,
+            )
+        )
         idx = list(itertools.chain.from_iterable(batch_idx))
         idx = np.argsort(idx)
         data_matrix = new_matrix[idx, :]
