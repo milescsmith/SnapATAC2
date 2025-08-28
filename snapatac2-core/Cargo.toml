@@ -1,6 +1,6 @@
 [package]
 name = "snapatac2-core"
-version = "2.1.0"
+version = "2.1.1"
 edition = "2021"
 authors = ["Kai Zhang <zhangkai33@westlake.edu.cn>"]
 description = "Rust APIs"
@@ -39,6 +39,7 @@ smallvec = "1.15"
 sanitize-filename = "0.6"
 tempfile = "3.3"
 zstd = { version = "0.13", features = ["zstdmt"] }
+polars-arrow-format = { version = "=0.2.1", features = ["full"] }
 
 [dev-dependencies]
 criterion = { version = "0.7", features = ["html_reports"] }
