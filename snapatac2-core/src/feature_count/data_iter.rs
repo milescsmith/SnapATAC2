@@ -1,9 +1,9 @@
 use crate::feature_count::{CountingStrategy, FeatureCounter};
 use crate::genome::{ChromSizes, GenomeBaseIndex};
-use crate::preprocessing::{Fragment, SummaryType};
+use crate::preprocessing::{Fragment, PairRead, SingleRead, SummaryType};
 
 use anndata::backend::{DataType, ScalarType};
-use anndata::data::{DynCsrMatrix, Element};
+use anndata::data::{ArrayConvert, DynCsrMatrix, Element};
 use anndata::{
     data::{utils::to_csr_data, CsrNonCanonical},
     ArrayData,
@@ -58,20 +58,20 @@ fn single_to_fragments(
                             if size > 0 {
                                 start = pos_5p;
                                 end = start.checked_add_signed(size).unwrap();
-                                strand = Some(Strand::Forward);
+                                strand = Strand::Forward;
                             } else {
                                 end = pos_5p + 1;
                                 start = end.checked_add_signed(size).unwrap();
-                                strand = Some(Strand::Reverse);
+                                strand = Strand::Reverse;
                             }
-                            Some(Fragment {
+                            Some(SingleRead {
                                 chrom: chrom.to_string(),
                                 start,
                                 end,
                                 barcode,
                                 count,
                                 strand,
-                            })
+                            }.into())
                         }
                     })
                     .collect()
@@ -108,14 +108,14 @@ fn pair_to_fragments(
                         {
                             None
                         } else {
-                            Some(Fragment {
+                            Some(PairRead {
                                 chrom: chrom.to_string(),
                                 start,
                                 end: start + size,
                                 barcode: None,
                                 count: 1,
                                 strand: None,
-                            })
+                            }.into())
                         }
                     })
                     .collect()
@@ -866,23 +866,24 @@ pub struct ChromValueIter<I> {
     pub(crate) length: usize,
 }
 
-impl<'a, I, T> ChromValueIter<I>
+impl<'a, I> ChromValueIter<I>
 where
-    I: ExactSizeIterator<Item = (CsrMatrix<T>, usize, usize)> + 'a,
-    T: Copy,
+    I: ExactSizeIterator<Item = (DynCsrMatrix, usize, usize)> + 'a,
 {
     /// Aggregate the values in the iterator by the given `FeatureCounter`.
-    pub fn aggregate_by<C>(
+    pub fn aggregate_by<C, T>(
         self,
         mut counter: C,
     ) -> impl ExactSizeIterator<Item = (CsrMatrix<T>, usize, usize)>
     where
         C: FeatureCounter<Value = T> + Clone + Sync,
-        T: Sync + Send + num::ToPrimitive,
+        T: Copy + Sync + Send + num::ToPrimitive,
+        DynCsrMatrix: ArrayConvert<CsrMatrix<T>>,
     {
         let n_col = counter.num_features();
         counter.reset();
         self.iter.map(move |(mat, i, j)| {
+            let mat: CsrMatrix<T> = mat.try_convert().unwrap();
             let n = j - i;
             let vec = (0..n)
                 .into_par_iter()

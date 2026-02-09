@@ -1,6 +1,6 @@
 [package]
 name = "snapatac2"
-version = "2.9.0-dev2"
+version = "2.9.0-dev4"
 edition = "2021"
 authors = ["Kai Zhang <kai@kzhang.org>"]
 description = "Rust APIs"
@@ -20,13 +20,13 @@ snapatac2-core = { path = "snapatac2-core" }
 [dependencies]
 snapatac2-core = { workspace = true }
 #anndata = "0.6.2"
-anndata = { git = "https://github.com/kaizhang/anndata-rs.git", rev = "5cb83f5005112aeb3c778409ca670a66cf59db64"}
+anndata = { git = "https://github.com/kaizhang/anndata-rs.git", rev = "ebcdb9914eaa2f1a7283481407e30026da7dd8b4"}
 #anndata-hdf5 = "0.5.2"
-anndata-hdf5 = { git = "https://github.com/kaizhang/anndata-rs.git", rev = "5cb83f5005112aeb3c778409ca670a66cf59db64"}
+anndata-hdf5 = { git = "https://github.com/kaizhang/anndata-rs.git", rev = "ebcdb9914eaa2f1a7283481407e30026da7dd8b4"}
 #pyanndata = "0.6"
-pyanndata = { git = "https://github.com/kaizhang/anndata-rs.git", rev = "5cb83f5005112aeb3c778409ca670a66cf59db64"}
+pyanndata = { git = "https://github.com/kaizhang/anndata-rs.git", rev = "ebcdb9914eaa2f1a7283481407e30026da7dd8b4"}
 anyhow = "1.0"
-bed-utils = "0.9.2"
+bed-utils = "0.10.1"
 flate2 = "1.0"
 itertools = "0.14"
 indicatif = "0.18"

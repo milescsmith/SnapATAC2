@@ -30,6 +30,8 @@ fn _snapatac2(m: &Bound<'_, PyModule>) -> PyResult<()> {
     //m.add_function(wrap_pyfunction!(pyanndata::read_csv, m)?)?;
     m.add_function(wrap_pyfunction!(pyanndata::read_dataset, m)?)?;
     m.add_function(wrap_pyfunction!(pyanndata::concat, m)?)?;
+    m.add_function(wrap_pyfunction!(pyanndata::py_get_default_write_config, m)?)?;
+    m.add_function(wrap_pyfunction!(pyanndata::py_set_default_write_config, m)?)?;
 
     // Motif analysis related functions
     m.add_class::<motif::PyDNAMotif>().unwrap();
@@ -67,6 +69,7 @@ fn _snapatac2(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     m.add_function(wrap_pyfunction!(network::link_region_to_gene, m)?)?;
 
+    m.add_function(wrap_pyfunction!(utils::aggregate_x, m)?)?;
     m.add_function(wrap_pyfunction!(utils::jaccard_similarity, m)?)?;
     m.add_function(wrap_pyfunction!(utils::cosine_similarity, m)?)?;
     m.add_function(wrap_pyfunction!(utils::pearson, m)?)?;

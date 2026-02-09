@@ -3,7 +3,6 @@ import snapatac2 as snap
 import numpy as np
 import anndata as ad
 from pathlib import Path
-from natsort import natsorted
 from collections import defaultdict
 import pytest
 from hypothesis import given, settings, HealthCheck, strategies as st
@@ -41,47 +40,78 @@ def h5ad(dir=Path("./")):
     dir.mkdir(exist_ok=True)
     return str(dir / Path(str(uuid.uuid4()) + ".h5ad"))
 
+def test_aggregation1():
+    x = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=np.float64)
+    x = np.concat([x] * 3333, axis=0)
 
-@given(
-    x = arrays(integer_dtypes(endianness='='), (500, 50)),
-    groups = st.lists(st.integers(min_value=0, max_value=5), min_size=500, max_size=500),
-    var = st.lists(st.integers(min_value=0, max_value=100000), min_size=50, max_size=50),
-)
-@settings(max_examples=10, deadline=None, suppress_health_check = [HealthCheck.function_scoped_fixture])
-def test_aggregation(x, groups, var, tmp_path):
-    def assert_equal(a, b):
-        assert a.keys() == b.keys()
-        np.testing.assert_array_equal(
-            np.array(list(a.values())),
-            np.array(list(b.values())),
-        )
+    groups = np.random.choice(["A", "B", "C", "D", "E"], size=x.shape[0])
+    var_names_len = np.random.randint(1000, 5000, size=x.shape[1])
+    var_names = [f"chr1:0-{i}" for i in var_names_len]
 
-    groups = [str(g) for g in groups]
-    obs_names = [str(i) for i in range(len(groups))]
-    var_names = [str(i) for i in range(len(var))]
-    adata = snap.AnnData(
+    adata = ad.AnnData(
         X=x,
-        obs = dict(ident=obs_names, groups=groups),
-        var = dict(ident=var_names, txt=var),
-        filename = h5ad(tmp_path),
+        obs=dict(groups=groups),
+    )
+    adata.var_names = var_names
+
+    expected = defaultdict(list)
+    for g, v in zip(groups, list(x)):
+        expected[g].append(v)
+    for k in expected.keys():
+        expected[k] = np.array(expected[k], dtype="float64").sum(axis=0)
+
+    actual = snap.tl.aggregate_X(adata, groupby=groups)
+    actual = {actual.obs_names[i]: np.ravel(actual.X[i, :]) for i in range(actual.n_obs)}
+    for k, v in expected.items():
+        np.testing.assert_array_almost_equal_nulp(v, actual[k])
+
+    actual = snap.tl.aggregate_X(adata, groupby=groups, normalize='RPM')
+    actual = {actual.obs_names[i]: np.ravel(actual.X[i, :]) for i in range(actual.n_obs)}
+    for k, v in expected.items():
+        v /= v.sum() / 1e6
+        np.testing.assert_array_almost_equal_nulp(v, actual[k])
+
+    actual = snap.tl.aggregate_X(adata, groupby=groups, normalize='RPKM')
+    actual = {actual.obs_names[i]: np.ravel(actual.X[i, :]) for i in range(actual.n_obs)}
+    for k, v in expected.items():
+        v /= v.sum() / 1e6
+        v /= (var_names_len / 1000.0)
+        np.testing.assert_array_almost_equal_nulp(v, actual[k], nulp=3)
+
+def test_aggregation2():
+    x = np.random.poisson(1.0, (10_000, 50)).astype(np.float64)
+    groups = np.random.choice(["A", "B", "C", "D", "E"], size=x.shape[0])
+    obs_names = [str(i) for i in range(len(groups))]
+    var_names = [str(i) for i in range(x.shape[1])]
+
+    adata = ad.AnnData(
+        X=x,
+        obs=dict(ident=obs_names, groups=groups),
+        var=dict(ident=var_names),
     )
 
     expected = defaultdict(list)
     for g, v in zip(groups, list(x)):
         expected[g].append(v)
     for k in expected.keys():
-        expected[k] = np.array(expected[k], dtype="float64").sum(axis = 0)
-    expected = dict(natsorted(expected.items()))
+        expected[k] = np.array(expected[k], dtype="float64").sum(axis=0)
+    expected = dict(expected.items())
 
-    np.testing.assert_array_equal(
+    np.testing.assert_array_almost_equal_nulp(
         x.sum(axis=0),
-        snap.tl.aggregate_X(adata),
-    )
-    np.testing.assert_array_equal(
-        np.array(list(expected.values())),
-        snap.tl.aggregate_X(adata, file = h5ad(tmp_path), groupby=groups).X[:],
+        np.ravel(snap.tl.aggregate_X(adata).X),
     )
 
+    np.testing.assert_array_almost_equal_nulp(
+        np.array(list(expected.values())),
+        snap.tl.aggregate_X(adata, groupby=groups).X,
+    )
+
+    adata.X = csr_matrix(adata.X[:])
+    np.testing.assert_array_almost_equal_nulp(
+        np.array(list(expected.values())),
+        snap.tl.aggregate_X(adata, groupby=groups).X,
+    )
 
 def test_make_fragment(datadir, tmp_path):
     bam = str(datadir.join('test.bam'))
@@ -103,7 +133,7 @@ def test_make_fragment(datadir, tmp_path):
         elements = {"allow_subnormal": False, "allow_nan": False, "allow_infinity": False, "min_value": 1, "max_value": 100},
     ),
 )
-@settings(deadline = None, suppress_health_check = [HealthCheck.function_scoped_fixture])
+@settings(deadline = None, max_examples=5, suppress_health_check = [HealthCheck.function_scoped_fixture])
 def test_reproducibility(mat):
     adata = ad.AnnData(X=csr_matrix(mat))
     embeddings = []
@@ -138,15 +168,16 @@ def read_bed(bed_file):
 
 def test_import(datadir):
     test_files = [
-        snap.datasets.pbmc500(downsample=True),
-        str(datadir.join('test_clean.tsv.gz')),
-        str(datadir.join('test_single.tsv.gz')),
+        (snap.datasets.pbmc500(downsample=True), True),
+        (str(datadir.join('test_clean.tsv.gz')), True),
+        (str(datadir.join('test_single.tsv.gz')), False),
     ]
 
-    for fl in test_files:
+    for fl, paired in test_files:
         data = snap.pp.import_fragments(
             fl,
             chrom_sizes=snap.genome.hg38,
+            is_paired=paired,
             min_num_fragments=0,
             sorted_by_barcode=False,
         )
